@@ -1,0 +1,1256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Khetly System Design</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--panel2:#f0f2f5;--text:#1b2230;--muted:#5d6878;--line:#d9dee6;--accent:#16a34a;--bad:#dc2626;--warn:#d97706;--ok:#16a34a;--shadow:0 8px 30px rgba(15,23,42,.14);--code:#eef1f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1319;--panel:#161d26;--panel2:#1d2631;--text:#e7ecf3;--muted:#9aa7b8;--line:#2a3544;--shadow:0 8px 30px rgba(0,0,0,.5);--code:#0f151c}}
+:root[data-theme="dark"]{--bg:#0e1319;--panel:#161d26;--panel2:#1d2631;--text:#e7ecf3;--muted:#9aa7b8;--line:#2a3544;--shadow:0 8px 30px rgba(0,0,0,.5);--code:#0f151c}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:inherit}
+header{position:sticky;top:0;z-index:30;background:var(--panel);border-bottom:1px solid var(--line)}
+.top{display:flex;gap:12px;align-items:center;padding:10px 16px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px}
+.brand i{width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block}
+.search{flex:1;min-width:180px;max-width:420px;position:relative}
+.search input{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text)}
+.results{position:absolute;top:36px;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);max-height:360px;overflow:auto;display:none;z-index:50}
+.results div{padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--line);font-size:13px}
+.results div:hover{background:var(--panel2)}
+.results small{color:var(--muted);margin-left:6px}
+.svcs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.svcs .lbl{font-size:12px;color:var(--muted)}
+.svc{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:3px 9px;border-radius:99px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.svc i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.svc.on{background:var(--panel2);outline:2px solid currentColor}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--panel);padding:5px 11px;border-radius:8px}
+.btn:hover{background:var(--panel2)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+nav{display:flex;gap:2px;overflow-x:auto;padding:0 12px;border-top:1px solid var(--line)}
+nav button{border:0;background:none;padding:9px 13px;border-bottom:3px solid transparent;color:var(--muted);white-space:nowrap}
+nav button.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+main{max-width:1240px;margin:0 auto;padding:18px 16px 80px}
+section.tab{display:none}section.tab.on{display:block}
+h2{margin:6px 0 4px;font-size:20px}h3{margin:20px 0 8px;font-size:15px}
+.sub{color:var(--muted);margin:0 0 14px;max-width:80ch}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.banner{border:1px solid var(--bad);background:color-mix(in srgb,var(--bad) 9%,var(--panel));border-radius:10px;padding:10px 14px;margin-bottom:14px}
+.banner a{color:var(--bad);font-weight:600;cursor:pointer;text-decoration:underline}
+.xref{cursor:pointer;color:#2563eb;text-decoration:none;border-bottom:1px dotted currentColor}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .xref{color:#7fb0ff}}
+:root[data-theme="dark"] .xref{color:#7fb0ff}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;border:1px solid var(--line);font-size:12px;margin:2px 3px 2px 0;background:var(--panel2)}
+.chip.xref{border-bottom:1px solid var(--line)}
+.badge{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.3px}
+.m-GET{background:#dcfce7;color:#166534}.m-POST{background:#dbeafe;color:#1e40af}.m-PATCH{background:#fef3c7;color:#92400e}.m-DELETE{background:#fee2e2;color:#991b1b}
+.b-patch{background:#ede9fe;color:#5b21b6}.b-gap{background:#fee2e2;color:#991b1b}.b-ok{background:#dcfce7;color:#166534}.b-med{background:#fef3c7;color:#92400e}.b-low{background:#e0e7ff;color:#3730a3}
+code,pre{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+code{background:var(--code);padding:1px 5px;border-radius:4px}
+pre{background:var(--code);padding:10px;border-radius:8px;overflow:auto;margin:6px 0}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:12px;position:sticky;top:0;background:var(--panel)}
+tr.click{cursor:pointer}tr.click:hover{background:var(--panel2)}
+.scroll{overflow-x:auto}
+.dim{opacity:.18;transition:opacity .15s}
+[data-svcs]{transition:opacity .15s}
+svg text{font-family:system-ui,sans-serif;fill:var(--text)}
+svg .mut{fill:var(--muted)}
+.node{cursor:pointer}.node rect{fill:var(--panel);stroke-width:2;transition:filter .15s}
+.node:hover rect{filter:brightness(1.07) drop-shadow(0 2px 6px rgba(0,0,0,.25))}
+.edge{stroke:var(--muted);stroke-width:2;fill:none;cursor:pointer}.edge:hover{stroke:var(--accent);stroke-width:3}
+.edge.dash{stroke-dasharray:6 5}
+.step{cursor:pointer}.step.act .hl{opacity:1}.hl{opacity:0;fill:var(--accent)}
+.step.act .hl{opacity:.13}
+.ctrls{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.pick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.pick button{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:5px 10px;font-size:13px}
+.pick button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.journey{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 18px}
+.jstep{border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:6px 10px;cursor:pointer;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+.jstep:hover{border-color:var(--accent)}
+.jarrow{color:var(--muted)}
+.g-public{border-left:4px solid #22c55e}.g-auth{border-left:4px solid #f59e0b}.g-RENTER{border-left:4px solid #3b82f6}.g-FARMER{border-left:4px solid #84cc16}.g-ADMIN{border-left:4px solid #a855f7}.g-public-only{border-left:4px solid #94a3b8}
+.sev{font-size:11px;font-weight:700;padding:1px 8px;border-radius:99px;text-transform:uppercase}
+.sev.critical{background:var(--bad);color:#fff}.sev.high{background:#f97316;color:#fff}.sev.medium{background:#fbbf24;color:#422006}.sev.low{background:#cbd5e1;color:#1e293b}.sev.fixed{background:#16a34a;color:#fff}
+details{border:1px solid var(--line);border-radius:10px;background:var(--panel);margin:6px 0;padding:8px 12px}
+details summary{cursor:pointer;font-weight:600}
+details[open] summary{margin-bottom:6px}
+.cats{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(540px,100vw);background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow);z-index:60;transform:translateX(105%);transition:transform .22s;display:flex;flex-direction:column}
+.drawer.open{transform:none}
+.dhead{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+.crumbs{flex:1;display:flex;flex-wrap:wrap;gap:4px;font-size:12px;color:var(--muted)}
+.crumbs a{cursor:pointer;text-decoration:underline}
+.dbody{padding:14px 16px 40px;overflow:auto;flex:1}
+.dbody h3:first-child{margin-top:0}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:6px 0 10px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.tick{color:var(--ok);font-weight:700}.cross{color:var(--muted)}
+.callout{border-left:4px solid var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--panel));padding:8px 12px;border-radius:6px;margin:8px 0}
+.callout.note{border-left-color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,var(--panel))}
+.callout.patch{border-left-color:#8b5cf6;background:color-mix(in srgb,#8b5cf6 8%,var(--panel))}
+.er-box{cursor:pointer}.er-box rect{fill:var(--panel);stroke:#14b8a6;stroke-width:2}
+.er-box.patch rect{stroke:#8b5cf6;stroke-dasharray:5 4}
+.er-line{stroke:var(--muted);stroke-width:1.6;opacity:.55}.er-line.hot{stroke:#14b8a6;stroke-width:3;opacity:1}
+ul.t{margin:4px 0 4px 18px;padding:0}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:4px 10px}
+.kv b{color:var(--muted);font-weight:600}
+@media (max-width:640px){.kv{grid-template-columns:1fr}}
+footer{color:var(--muted);font-size:12px;text-align:center;padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="brand"><i></i> Khetly · System Design</div>
+    <div class="search"><input id="q" placeholder="Search tables, columns, endpoints, routes, questions…" autocomplete="off"><div class="results" id="results"></div></div>
+    <div class="svcs" id="svcs"></div>
+    <button class="btn" id="theme" title="Toggle theme">◐</button>
+  </div>
+  <nav id="nav"></nav>
+</header>
+<main>
+  <section class="tab" id="tab-overview"></section>
+  <section class="tab" id="tab-flows"></section>
+  <section class="tab" id="tab-journeys"></section>
+  <section class="tab" id="tab-db"></section>
+  <section class="tab" id="tab-api"></section>
+  <section class="tab" id="tab-auth"></section>
+  <section class="tab" id="tab-frontend"></section>
+  <section class="tab" id="tab-deploy"></section>
+  <section class="tab" id="tab-interview"></section>
+</main>
+<aside class="drawer" id="drawer"><div class="dhead"><div class="crumbs" id="crumbs"></div><button class="btn" id="dclose">✕</button></div><div class="dbody" id="dbody"></div></aside>
+<footer>Grounded in github.com/ak8415129/Khetly-v2 @ f486f94 (re-synced after PR #1) · PR #1 (RAG, reviews, disputes) is merged as <code>f486f94</code>. The admin audit-log page is still not in the repo.</footer>
+<script>
+/* ======================= KHETLY DATA MODEL (grounded in repo HEAD 12eef13) ======================= */
+const SVC = {
+  web:  { name: 'Frontend',        color: '#3b82f6', desc: 'React SPA served from Vercel' },
+  fb:   { name: 'Firebase',        color: '#f59e0b', desc: 'Google sign-in + ID-token verification' },
+  auth: { name: 'Auth / JWT',      color: '#a855f7', desc: 'Own access + refresh tokens, RBAC' },
+  api:  { name: 'API',             color: '#22c55e', desc: 'Express + zod + Prisma, hosted on Render' },
+  db:   { name: 'Database',        color: '#14b8a6', desc: 'PostgreSQL on Supabase via Prisma' },
+  ai:   { name: 'AI / LLM',        color: '#ec4899', desc: 'Groq LLM + local embeddings + pgvector RAG' },
+  host: { name: 'Hosting',         color: '#64748b', desc: 'Vercel + Render + Supabase (free tiers)' },
+};
+
+/* ---------- DATABASE ---------- */
+const ENUMS = {
+  UserRole: ['RENTER', 'FARMER', 'ADMIN'],
+  VerificationStatus: ['PENDING', 'IN_REVIEW', 'VERIFIED', 'REJECTED'],
+  RiskLevel: ['LOW', 'MEDIUM', 'HIGH'],
+  ListingStatus: ['DRAFT', 'PENDING_REVIEW', 'ACTIVE', 'PAUSED', 'ARCHIVED', 'REJECTED'],
+  BookingStatus: ['ENQUIRY', 'CONFIRMED', 'ACTIVE', 'COMPLETED', 'CANCELLED', 'DISPUTED'],
+  HarvestSeason: ['RABI', 'KHARIF', 'ZAID', 'YEAR_ROUND'],
+  LandType: ['IRRIGATED_CANAL', 'IRRIGATED_BOREWELL', 'RAINFED', 'ORCHARD'],
+  SoilType: ['SANDY_LOAM', 'CLAY_LOAM', 'BLACK_COTTON', 'RED_LATERITE', 'ALLUVIAL', 'UNKNOWN'],
+  LogisticsOption: ['DOORSTEP_DELIVERY', 'FARM_PICKUP', 'MANDI_DROP', 'COURIER'],
+  AddonType: ['FARM_VIDEO', 'FARM_VISIT', 'TREE_RENTAL', 'HOMEMADE_PRODUCTS', 'HARVEST_BOX', 'HARVEST_PHOTOS'],
+  PayoutStatus: ['PENDING', 'PROCESSING', 'PAID', 'FAILED'],
+};
+
+// col: [name, type, flags, note]
+const TABLES = {
+  users: {
+    model: 'User', purpose: 'Every human on the platform (renter, farmer or admin). Identity is delegated to Firebase; this row is the app-side profile + role.',
+    x: 40, y: 40,
+    cols: [
+      ['id', 'String (uuid)', 'PK', 'Our own id; goes in JWT `sub`.'],
+      ['firebaseUid', 'String', 'UNIQUE', 'Link to Firebase Auth user. Lookup key at login.'],
+      ['email', 'String', 'UNIQUE', 'From Google; must be email_verified.'],
+      ['phone', 'String?', '', 'Optional now (OTP flow was replaced by Google).'],
+      ['role', 'UserRole', 'DEFAULT RENTER', 'RENTER | FARMER | ADMIN. Copied into the JWT.'],
+      ['name', 'String', 'DEFAULT ""', ''],
+      ['avatarUrl', 'String?', '', 'Google profile picture.'],
+      ['preferredLanguage', 'String', 'DEFAULT "en"', 'en | hi'],
+      ['isVerified', 'Boolean', 'DEFAULT true', 'Google-verified email = trusted.'],
+      ['profileCompleted', 'Boolean', 'DEFAULT false', 'Has chosen role + name. Admins skip.'],
+      ['isActive', 'Boolean', 'DEFAULT true', 'Suspension switch; checked on EVERY request.'],
+      ['createdAt', 'DateTime', 'DEFAULT now()', ''],
+      ['updatedAt', 'DateTime', '@updatedAt', ''],
+    ],
+    indexes: ['PK(id)', 'UNIQUE(firebaseUid)', 'UNIQUE(email)'],
+    rel: [['refresh_tokens', '1 → N', 'user has many sessions'], ['farmer_profiles', '1 → 0..1', 'only role FARMER'], ['bookings', '1 → N', 'as renter'], ['reviews', '1 → N', 'as reviewer'], ['admin_actions', '1 → N', 'as admin actor']],
+    sample: { id: 'a1b2…', firebaseUid: 'fQx…', email: 'asha@gmail.com', role: 'FARMER', name: 'Asha Patil', isActive: true, profileCompleted: true },
+  },
+  refresh_tokens: {
+    model: 'RefreshToken', purpose: 'Server-side store of valid refresh JWTs. Enables rotation, logout-everywhere and suspension (delete rows = kill sessions).',
+    x: 40, y: 330,
+    cols: [
+      ['id', 'String (uuid)', 'PK', ''],
+      ['userId', 'String', 'FK → users.id', 'ON DELETE CASCADE'],
+      ['token', 'String', 'UNIQUE', 'The refresh JWT itself (stored in plaintext - see known gaps).'],
+      ['expiresAt', 'DateTime', '', 'now + 90 days.'],
+      ['createdAt', 'DateTime', 'DEFAULT now()', ''],
+    ],
+    indexes: ['PK(id)', 'UNIQUE(token)', 'INDEX(token)', 'INDEX(userId)'],
+    rel: [['users', 'N → 1', 'cascade delete']],
+    sample: { id: 'c9d…', userId: 'a1b2…', token: 'eyJhbGciOi…', expiresAt: '+90d' },
+  },
+  farmer_profiles: {
+    model: 'FarmerProfile', purpose: 'Farmer-specific data: location, KYC flags, bank details, rating. Exactly one per FARMER user.',
+    x: 330, y: 40,
+    cols: [
+      ['id', 'String (uuid)', 'PK', 'Referenced by listings and bookings (NOT users.id).'],
+      ['userId', 'String', 'UNIQUE, FK → users.id', 'ON DELETE CASCADE'],
+      ['bio', 'String', 'DEFAULT ""', ''],
+      ['village / tehsil / district / state / pincode', 'String', 'DEFAULT ""', 'Home address of the farmer.'],
+      ['experienceYears', 'Int', 'DEFAULT 0', ''],
+      ['aadhaarVerified', 'Boolean', 'DEFAULT false', 'Set true by the farmer’s own PATCH (see gaps) or by admin verify.'],
+      ['bankVerified', 'Boolean', 'DEFAULT false', 'Same as above.'],
+      ['verificationStatus', 'VerificationStatus', 'DEFAULT PENDING', 'Admin-controlled: PENDING→VERIFIED/REJECTED.'],
+      ['bankAccountNumber / ifscCode / accountHolderName / upiId', 'String?', '', 'Payout details (plaintext).'],
+      ['rating', 'Float', 'DEFAULT 0', 'Denormalised average.'],
+      ['reviewCount', 'Int', 'DEFAULT 0', 'Denormalised.'],
+      ['createdAt / updatedAt', 'DateTime', '', ''],
+    ],
+    indexes: ['PK(id)', 'UNIQUE(userId)'],
+    rel: [['users', '1 → 1', 'owner'], ['land_listings', '1 → N', 'farmer’s plots'], ['bookings', '1 → N', 'as farmer']],
+    sample: { id: 'f3e…', userId: 'a1b2…', district: 'Nashik', verificationStatus: 'PENDING', rating: 0 },
+  },
+  land_listings: {
+    model: 'LandListing', purpose: 'A rentable plot with crop plan, expected yield, price and a moderation status. Address and crop fields are flat columns; the API re-shapes them into `address{}` / `cropDetails{}` objects.',
+    x: 620, y: 40,
+    cols: [
+      ['id', 'String (uuid)', 'PK', ''],
+      ['farmerId', 'String', 'FK → farmer_profiles.id', 'No cascade.'],
+      ['title / description', 'String', '', ''],
+      ['landType', 'LandType', '', 'IRRIGATED_CANAL | IRRIGATED_BOREWELL | RAINFED | ORCHARD'],
+      ['soilType', 'SoilType', 'DEFAULT UNKNOWN', ''],
+      ['plotSizeAcres', 'Float', '', ''],
+      ['village / tehsil / district / state / pincode', 'String', '', 'Flattened address.'],
+      ['lat, lng', 'Float', 'INDEX(lat,lng)', 'Used by haversine distance (computed in app code).'],
+      ['primaryCrop / seedVariety', 'String', '', ''],
+      ['harvestSeason', 'HarvestSeason', '', 'RABI | KHARIF | ZAID | YEAR_ROUND'],
+      ['yieldMin / yieldMax / yieldUnit', 'Float / Float / String', 'unit DEFAULT "quintal/acre"', ''],
+      ['priceMin / priceMax / priceUnit', 'Float / Float / String', 'unit DEFAULT "per quintal"', 'Expected market price range.'],
+      ['fertilizerPlan / pesticidePlan', 'String', 'DEFAULT ""', ''],
+      ['riskLevel / riskDescription', 'RiskLevel / String', 'DEFAULT LOW', ''],
+      ['logistics', 'LogisticsOption[]', '', 'Postgres enum array.'],
+      ['addons', 'AddonType[]', '', ''],
+      ['pricePerMonth', 'Float', '', 'Booking total = pricePerMonth × months.'],
+      ['minRentalMonths', 'Int', 'DEFAULT 1', ''],
+      ['status', 'ListingStatus', 'DEFAULT DRAFT · INDEX', 'API creates as PENDING_REVIEW. Only ACTIVE is searchable/bookable.'],
+      ['rejectionReason', 'String?', '', 'Admin’s reason on reject.'],
+      ['photos', 'String[]', '', 'URLs. No upload endpoint in repo yet.'],
+      ['videoUrl', 'String?', '', ''],
+      ['viewCount / bookingCount', 'Int', 'DEFAULT 0', 'viewCount ++ on GET /listings/:id.'],
+      ['createdAt / updatedAt', 'DateTime', '', ''],
+    ],
+    indexes: ['PK(id)', 'INDEX(lat,lng)', 'INDEX(status)', 'INDEX(farmerId)'],
+    rel: [['farmer_profiles', 'N → 1', 'owner'], ['bookings', '1 → N', ''], ['reviews', '1 → N', '']],
+    sample: { id: 'l7a…', title: '3 acre canal-fed plot', primaryCrop: 'Tomato', pricePerMonth: 18000, status: 'ACTIVE', district: 'Nashik' },
+  },
+  bookings: {
+    model: 'Booking', purpose: 'A renter’s request/lease on a listing. Money fields are snapshotted at creation so later price edits never change old bookings.',
+    x: 620, y: 360,
+    cols: [
+      ['id', 'String (uuid)', 'PK', ''],
+      ['listingId', 'String', 'FK → land_listings.id', 'INDEX'],
+      ['renterId', 'String', 'FK → users.id', 'INDEX'],
+      ['farmerId', 'String', 'FK → farmer_profiles.id', 'INDEX · copied from listing at creation'],
+      ['status', 'BookingStatus', 'DEFAULT ENQUIRY', 'ENQUIRY | CONFIRMED | ACTIVE | COMPLETED | CANCELLED | DISPUTED'],
+      ['startDate / endDate', 'DateTime', '', 'endDate = addMonths(start, durationMonths)'],
+      ['durationMonths', 'Int', '', '≥ listing.minRentalMonths (only check today).'],
+      ['totalAmount', 'Float', '', 'pricePerMonth × durationMonths'],
+      ['platformFeePercent', 'Float', 'DEFAULT 8', 'Snapshot of the fee %.'],
+      ['platformFee', 'Float', '', 'calcPlatformFee(total)'],
+      ['farmerReceives', 'Float', '', 'total − platformFee'],
+      ['selectedAddons', 'AddonType[]', '', ''],
+      ['notes', 'String?', '', ''],
+      ['payoutStatus', 'PayoutStatus', 'DEFAULT PENDING', 'Placeholder - no payment gateway yet.'],
+      ['createdAt / updatedAt', 'DateTime', '', ''],
+    ],
+    indexes: ['PK(id)', 'INDEX(renterId)', 'INDEX(farmerId)', 'INDEX(listingId)'],
+    rel: [['land_listings', 'N → 1', ''], ['users', 'N → 1', 'renter'], ['farmer_profiles', 'N → 1', 'farmer'], ['reviews', '1 → 0..1', 'one review per booking']],
+    sample: { id: 'b5c…', status: 'ENQUIRY', durationMonths: 3, totalAmount: 54000, platformFee: 4320, farmerReceives: 49680 },
+  },
+  reviews: {
+    model: 'Review', purpose: 'One review per completed booking, with sub-ratings. Schema exists but NO endpoint writes it yet.',
+    x: 330, y: 360,
+    cols: [
+      ['id', 'String (uuid)', 'PK', ''],
+      ['bookingId', 'String', 'UNIQUE, FK → bookings.id', ''],
+      ['reviewerId', 'String', 'FK → users.id', 'INDEX'],
+      ['listingId', 'String', 'FK → land_listings.id', 'INDEX'],
+      ['rating', 'Int', '', '1-5'],
+      ['comment', 'String', '', ''],
+      ['yieldAccuracy / farmerResponsiveness / valueForMoney', 'Int', '', 'Sub-ratings.'],
+      ['createdAt', 'DateTime', '', ''],
+    ],
+    indexes: ['PK(id)', 'UNIQUE(bookingId)', 'INDEX(listingId)', 'INDEX(reviewerId)'],
+    rel: [['bookings', '1 → 1', ''], ['users', 'N → 1', 'reviewer'], ['land_listings', 'N → 1', '']],
+    sample: { id: 'r2…', bookingId: 'b5c…', rating: 5, comment: 'Yield matched the plan.' },
+  },
+  admin_actions: {
+    model: 'AdminAction', purpose: 'Append-only audit trail. Every admin mutation (suspend, verify, approve, reject, remove) writes one row.',
+    x: 40, y: 560,
+    cols: [
+      ['id', 'String (uuid)', 'PK', ''],
+      ['adminId', 'String', 'FK → users.id', 'INDEX'],
+      ['action', 'String', '', 'APPROVE_LISTING, REJECT_LISTING, REMOVE_LISTING, SUSPEND_USER, REACTIVATE_USER, VERIFY_FARMER, REJECT_FARMER'],
+      ['targetType', 'String', '', '"User" | "LandListing" | "FarmerProfile"'],
+      ['targetId', 'String', '', 'INDEX(targetType,targetId)'],
+      ['reason', 'String?', '', ''],
+      ['createdAt', 'DateTime', 'DEFAULT now()', ''],
+    ],
+    indexes: ['PK(id)', 'INDEX(adminId)', 'INDEX(targetType,targetId)'],
+    rel: [['users', 'N → 1', 'actor']],
+    sample: { action: 'APPROVE_LISTING', targetType: 'LandListing', targetId: 'l7a…', reason: null },
+  },
+  knowledge_chunks: {
+    model: 'KnowledgeChunk', purpose: 'RAG knowledge base for the AI assistant (added in PR #1). ~13 curated FAQ-style chunks about renting, fees, trust and Indian farming, each stored with a 384-d embedding. Created by a hand-written SQL migration (pgvector) and filled by `pnpm --filter api seed:kb`.',
+    x: 330, y: 560,
+    cols: [
+      ['id', 'TEXT', 'PK', 'Stable id from knowledge-base.ts; the seed script upserts by id.'],
+      ['title', 'TEXT', 'NOT NULL', 'Chunk heading; also shown as a "source" in the widget.'],
+      ['content', 'TEXT', 'NOT NULL', 'Passage injected into the LLM system prompt.'],
+      ['category', 'TEXT', 'DEFAULT "general"', 'account, agriculture, crops, listing, payments, renting, trust_safety'],
+      ['embedding', 'vector(384)', 'NULLABLE · ivfflat', 'Xenova/all-MiniLM-L6-v2, normalised. Prisma models it as Unsupported("vector")?.'],
+      ['createdAt', 'TIMESTAMP(3)', 'DEFAULT now()', ''],
+      ['updatedAt', 'TIMESTAMP(3)', 'NOT NULL', 'Set to NOW() by the seed upsert.'],
+    ],
+    indexes: ['PK(id)', 'knowledge_chunks_embedding_idx: ivfflat (embedding vector_cosine_ops) WITH (lists = 100)'],
+    rel: [],
+    sample: { id: 'fee-structure', title: 'Platform fee', category: 'payments', embedding: '[0.012, -0.044, … 384 floats]' },
+  },
+};
+
+/* ---------- API ENDPOINTS ---------- */
+// auth: none | user | role list.  tables: [table, 'R'|'W'|'RW']
+const ENDPOINTS = [
+  { id: 'health', m: 'GET', p: '/health', mod: 'core', auth: 'none', tables: [], mw: ['helmet', 'cors', 'rateLimit'], desc: 'Liveness probe. Render uses it as healthCheckPath; also what a keep-alive pinger hits.', res: '{ status:"ok", env, timestamp }', file: 'apps/api/src/index.ts' },
+
+  { id: 'auth-google', m: 'POST', p: '/v1/auth/google', mod: 'auth', auth: 'none', tables: [['users', 'RW'], ['refresh_tokens', 'W']], mw: ['validate(body)'], desc: 'Exchange a Firebase ID token for Khetly access+refresh tokens. Creates the user on first login (role RENTER, or ADMIN if email === FIRST_ADMIN_EMAIL).', req: '{ idToken: string }', res: '{ user, tokens:{accessToken,refreshToken,expiresIn}, isNewUser, needsProfileCompletion }', errs: ['401 EMAIL_NOT_VERIFIED', '403 ACCOUNT_SUSPENDED', '422 validation'], file: 'modules/auth/auth.service.ts → googleSignIn', svc: ['fb', 'auth', 'db'] },
+  { id: 'auth-complete', m: 'POST', p: '/v1/auth/complete-profile', mod: 'auth', auth: 'user', tables: [['users', 'RW'], ['farmer_profiles', 'W'], ['refresh_tokens', 'W']], mw: ['requireAuth', 'validate(body)'], desc: 'First-time setup: pick RENTER or FARMER, set name + language. Upserts an empty FarmerProfile for farmers and re-issues tokens so the new role is in the JWT.', req: '{ role:"RENTER"|"FARMER", name (≥2), preferredLanguage?:"en"|"hi" }', res: '{ user, tokens }', errs: ['400 FORBIDDEN (admin)', '422'], file: 'modules/auth/auth.service.ts → completeProfile', svc: ['auth', 'db'] },
+  { id: 'auth-refresh', m: 'POST', p: '/v1/auth/token/refresh', mod: 'auth', auth: 'none', tables: [['refresh_tokens', 'RW'], ['users', 'R']], mw: ['validate(body)'], desc: 'Rotate tokens: verify refresh JWT signature → must exist in DB and be unexpired → user must be active → delete the old row → issue a new pair.', req: '{ refreshToken }', res: '{ accessToken, refreshToken, expiresIn }', errs: ['401 INVALID_TOKEN / TOKEN_EXPIRED', '403 ACCOUNT_SUSPENDED'], file: 'modules/auth/auth.service.ts → refreshTokens', svc: ['auth', 'db'] },
+  { id: 'auth-logout', m: 'POST', p: '/v1/auth/logout', mod: 'auth', auth: 'user', tables: [['refresh_tokens', 'W']], mw: ['requireAuth'], desc: 'Deletes ALL refresh tokens of the user (logout from every device). The short-lived access token still works until it expires (7d).', res: '{ success:true }', file: 'modules/auth/auth.service.ts → logout', svc: ['auth', 'db'] },
+  { id: 'auth-me', m: 'GET', p: '/v1/auth/me', mod: 'auth', auth: 'user', tables: [['users', 'R']], mw: ['requireAuth'], desc: 'Current user profile (used to hydrate the SPA).', res: 'serialized user', file: 'modules/auth/auth.service.ts → getMe', svc: ['auth', 'db'] },
+
+  { id: 'lst-search', m: 'GET', p: '/v1/listings', mod: 'listings', auth: 'none', tables: [['land_listings', 'R'], ['farmer_profiles', 'R'], ['users', 'R']], mw: ['(no validation)'], desc: 'Public search. DB query filters status=ACTIVE + text/risk/landType/price; then distance, radius filter, sort and pagination are done IN MEMORY (haversine in Node).', req: 'query: lat,lng,radiusKm,crop,riskLevel,landType,maxPricePerMonth,sortBy,page,pageSize', res: '{ data[], total, page, pageSize, totalPages, hasMore }', file: 'modules/listings/listings.service.ts → searchListings', note: 'Loads every ACTIVE listing each time - fine for hundreds, not for 100k. Fix: PostGIS / bounding-box SQL + DB pagination.' },
+  { id: 'lst-get', m: 'GET', p: '/v1/listings/:id', mod: 'listings', auth: 'none', tables: [['land_listings', 'RW'], ['farmer_profiles', 'R'], ['users', 'R']], mw: [], desc: 'Listing detail with farmer summary. Increments viewCount (a write on a GET).', res: 'listing + farmer{} + address{} + cropDetails{}', errs: ['404 NOT_FOUND'], file: 'modules/listings/listings.service.ts → getListingById', note: 'No status check: DRAFT / PENDING / REJECTED listings are readable by anyone who knows the UUID.' },
+  { id: 'lst-create', m: 'POST', p: '/v1/listings', mod: 'listings', auth: 'FARMER, ADMIN', tables: [['farmer_profiles', 'R'], ['land_listings', 'W']], mw: ['requireAuth', 'requireRole(FARMER,ADMIN)', '(no zod)'], desc: 'Create a listing for the caller’s farmer profile. Always stored as PENDING_REVIEW - an admin must approve before it appears in search.', req: '{ title, landType, plotSizeAcres, pricePerMonth, address{…geoPoint}, cropDetails{…}, logistics[], addons[] … }', res: '201 listing', file: 'modules/listings/listings.service.ts → createListing', note: 'Admin has no farmer_profile → plain Error → 500.' },
+  { id: 'lst-update', m: 'PATCH', p: '/v1/listings/:id', mod: 'listings', auth: 'FARMER, ADMIN', tables: [['land_listings', 'RW']], mw: ['requireAuth', 'requireRole(FARMER,ADMIN)', '(no zod)'], desc: 'Owner edits a listing. If it was ACTIVE it is pushed back to PENDING_REVIEW (re-moderation).', res: 'updated listing', errs: ['403 FORBIDDEN (not owner)', '404'], file: 'modules/listings/listings.service.ts → updateListing', gap: 'MASS-ASSIGNMENT: `data: { ...req.body }` goes straight to Prisma. A farmer can send {"status":"ACTIVE"} on a PENDING/REJECTED listing and approve it themselves (the re-review override only applies when the listing was already ACTIVE). Can also overwrite farmerId, viewCount, etc.' },
+  { id: 'lst-delete', m: 'DELETE', p: '/v1/listings/:id', mod: 'listings', auth: 'FARMER, ADMIN', tables: [['land_listings', 'RW']], mw: ['requireAuth', 'requireRole(FARMER,ADMIN)'], desc: 'Soft delete: sets status=ARCHIVED (owner only).', res: '{ data:null, message:"Listing archived" }', file: 'modules/listings/listings.service.ts → deleteListing' },
+  { id: 'lst-mine', m: 'GET', p: '/v1/listings/farmer/mine', mod: 'listings', auth: 'FARMER, ADMIN', tables: [['farmer_profiles', 'R'], ['land_listings', 'R']], mw: ['requireAuth', 'requireRole'], desc: 'Caller’s own listings (all statuses).', res: 'listing[]', file: 'modules/listings/listings.controller.ts → myListings', note: 'Now unused: the frontend calls GET /v1/farmer/listings (added in PR #1).' },
+
+  { id: 'fm-profile-get', m: 'GET', p: '/v1/farmer/profile', mod: 'farmer', auth: 'FARMER, ADMIN', tables: [['farmer_profiles', 'RW'], ['users', 'R']], mw: ['requireAuth', 'requireRole'], desc: 'Get (or lazily create) the farmer profile.', res: 'profile + user{name,phone,avatarUrl}', file: 'modules/farmer/farmer.service.ts → getOrCreateFarmerProfile' },
+  { id: 'fm-profile-patch', m: 'PATCH', p: '/v1/farmer/profile', mod: 'farmer', auth: 'FARMER, ADMIN', tables: [['farmer_profiles', 'RW'], ['users', 'W']], mw: ['requireAuth', 'requireRole', '(manual whitelist)'], desc: 'Onboarding + profile edits. Uses an explicit field whitelist (good), also updates users.name.', req: '{ bio, village…, experienceYears, aadhaarNumber?, accountHolderName, bankAccountNumber, ifscCode, upiId }', res: 'profile', file: 'modules/farmer/farmer.service.ts → updateFarmerProfile', gap: 'Whitelist allows the farmer to set aadhaarVerified / bankVerified = true directly, and sending any aadhaarNumber flips aadhaarVerified=true with no real check. The number itself is not stored (no column).' },
+  { id: 'fm-stats', m: 'GET', p: '/v1/farmer/stats', mod: 'farmer', auth: 'FARMER, ADMIN', tables: [['farmer_profiles', 'R'], ['land_listings', 'R'], ['bookings', 'R']], mw: ['requireAuth', 'requireRole'], desc: 'Dashboard counters: listings, active, earnings (COMPLETED bookings), rating, pending enquiries.', res: '{ totalListings, activeListings, totalEarnings, averageRating, totalBookings, pendingBookings }', file: 'modules/farmer/farmer.service.ts → getFarmerStats' },
+  { id: 'fm-bookings', m: 'GET', p: '/v1/farmer/bookings', mod: 'farmer', auth: 'FARMER, ADMIN', tables: [['farmer_profiles', 'R'], ['bookings', 'R'], ['land_listings', 'R'], ['users', 'R']], mw: ['requireAuth', 'requireRole'], desc: 'Bookings received on the farmer’s listings, with renter info.', res: 'booking[]', file: 'modules/farmer/farmer.service.ts → getFarmerBookings', note: '`?limit=` is now honoured (PR #1).' },
+  { id: 'fm-booking-status', m: 'PATCH', p: '/v1/farmer/bookings/:bookingId/status', mod: 'farmer', auth: 'FARMER, ADMIN', tables: [['farmer_profiles', 'R'], ['bookings', 'RW']], mw: ['requireAuth', 'requireRole'], desc: 'Farmer moves a booking to a new status (accept → CONFIRMED etc.). Ownership is checked (booking.farmerId === profile.id).', req: '{ status }', res: 'updated booking', errs: ['403 FORBIDDEN', '404'], file: 'modules/farmer/farmer.service.ts → updateBookingStatus', gap: 'No validation and no state machine: `status as never` accepts any string/enum value, in any order (COMPLETED → ENQUIRY, even on a CANCELLED booking). Invalid strings become a Prisma 500.' },
+  { id: 'fm-listings', m: 'GET', p: '/v1/farmer/listings', mod: 'farmer', auth: 'FARMER, ADMIN', tables: [['farmer_profiles', 'R'], ['land_listings', 'R']], mw: ['requireAuth', 'requireRole'], desc: 'Farmer’s own listings (all statuses), optional ?limit. ADDED IN PR #1 - previously the frontend called this route but it was not registered, so My Listings and the dashboard list were empty.', req: 'query: limit?', res: 'listing[] with address{} and cropDetails{}', file: 'modules/farmer/farmer.service.ts → getFarmerListings', note: 'Duplicates GET /v1/listings/farmer/mine, which is now unused by the frontend.' },
+
+  { id: 'usr-patch', m: 'PATCH', p: '/v1/users/me', mod: 'users', auth: 'user', tables: [['users', 'RW']], mw: ['requireAuth', '(no zod)'], desc: 'Edit own name / preferred language.', req: '{ name?, preferredLanguage? }', res: 'user', file: 'modules/user/user.service.ts → updateMe', gap: 'CRITICAL - PRIVILEGE ESCALATION: controller passes req.body to `prisma.user.update({ data })` unfiltered. Any logged-in user can send {"role":"ADMIN"} (or isActive, email, firebaseUid …) and become admin. requireAuth re-reads role from the DB on every request, so it takes effect immediately. Fix: zod .strict() schema with only name/preferredLanguage.' },
+  { id: 'usr-stats', m: 'GET', p: '/v1/users/me/stats', mod: 'users', auth: 'user', tables: [['bookings', 'R']], mw: ['requireAuth'], desc: 'Renter dashboard counters (total, active, totalSpent from COMPLETED).', res: '{ totalBookings, activeBookings, totalSpent, listingsViewed:0 }', file: 'modules/user/user.service.ts → getMyStats' },
+  { id: 'usr-bookings', m: 'GET', p: '/v1/users/me/bookings', mod: 'users', auth: 'user', tables: [['bookings', 'R'], ['land_listings', 'R']], mw: ['requireAuth'], desc: 'Renter’s bookings with listing summary; supports ?limit.', res: 'booking[]', file: 'modules/user/user.service.ts → getMyBookings' },
+
+  { id: 'bk-create', m: 'POST', p: '/v1/bookings', mod: 'bookings', auth: 'user', tables: [['land_listings', 'R'], ['bookings', 'W']], mw: ['requireAuth', '(no zod)'], desc: 'Create an ENQUIRY. Server computes endDate, totalAmount, 8% platform fee and farmerReceives - the client never sends money values.', req: '{ listingId, startDate, durationMonths, selectedAddons[], notes? }', res: '201 booking + listing summary', errs: ['404', '400 UNAVAILABLE (not ACTIVE)', '400 INVALID_DURATION'], file: 'modules/bookings/bookings.service.ts → createBooking', gap: 'No input validation (negative/NaN/fractional durationMonths, invalid date, unknown add-ons pass through) and no self-booking check (a farmer can rent their own plot). No overlap/availability check, so the same dates can be booked by many renters.' },
+  { id: 'bk-mine', m: 'GET', p: '/v1/bookings/mine', mod: 'bookings', auth: 'user', tables: [['bookings', 'R'], ['land_listings', 'R']], mw: ['requireAuth'], desc: 'Renter’s bookings.', res: 'booking[]', file: 'modules/bookings/bookings.service.ts → getRenterBookings' },
+  { id: 'bk-cancel', m: 'PATCH', p: '/v1/bookings/:id/cancel', mod: 'bookings', auth: 'user', tables: [['bookings', 'RW']], mw: ['requireAuth'], desc: 'Renter cancels. Allowed only from ENQUIRY or CONFIRMED and only by the booking’s renter.', res: 'booking', errs: ['403', '404', '400 INVALID_STATUS'], file: 'modules/bookings/bookings.service.ts → cancelBooking' },
+  { id: 'bk-dispute', m: 'PATCH', p: '/v1/bookings/:id/dispute', mod: 'bookings', auth: 'user', tables: [['bookings', 'RW']], mw: ['requireAuth', '(no zod)'], desc: 'ADDED IN PR #1. The booking’s renter raises a dispute: allowed from CONFIRMED, ACTIVE or COMPLETED; sets status DISPUTED and prepends `[DISPUTE: reason]` to booking.notes.', req: '{ reason }', res: 'updated booking', errs: ['403 FORBIDDEN (not the renter)', '404', '400 INVALID_STATUS'], file: 'modules/bookings/bookings.service.ts → raiseDispute', gap: 'No validation on `reason` (missing/huge string), the dispute text is stored inside the free-text notes column, the farmer cannot respond, and no admin endpoint resolves a DISPUTED booking. The farmer endpoint can also set any status afterwards.' },
+  { id: 'bk-review', m: 'POST', p: '/v1/bookings/:id/review', mod: 'bookings', auth: 'user', tables: [['bookings', 'R'], ['reviews', 'RW'], ['farmer_profiles', 'W'], ['land_listings', 'R']], mw: ['requireAuth', '(no zod)'], desc: 'ADDED IN PR #1. Renter reviews a COMPLETED booking, once. Ratings are clamped to 1-5 (sub-ratings default to the overall rating). Then the farmer’s average rating and reviewCount are recomputed from all reviews on that farmer’s listings.', req: '{ rating, comment, yieldAccuracy?, farmerResponsiveness?, valueForMoney? }', res: '201 review', errs: ['403', '404', '400 NOT_COMPLETED', '400 ALREADY_REVIEWED'], file: 'modules/bookings/bookings.service.ts → createBookingReview', gap: 'Not wrapped in a transaction (review insert and rating recompute can diverge), the recompute scans every review of the farmer on each submit, and `comment` length is unbounded. Duplicate submissions are caught twice: the app check and the UNIQUE(bookingId) constraint.' },
+
+  { id: 'ad-stats', m: 'GET', p: '/v1/admin/stats', mod: 'admin', auth: 'ADMIN', tables: [['users', 'R'], ['land_listings', 'R'], ['bookings', 'R']], mw: ['requireAuth', 'requireAdmin'], desc: '9 parallel counts + SUM(platformFee) for COMPLETED + 30-day signups grouped by day.', res: '{ totalUsers, totalFarmers, …, platformRevenue, signupsByDay }', file: 'modules/admin/admin.service.ts → getPlatformStats' },
+  { id: 'ad-users', m: 'GET', p: '/v1/admin/users', mod: 'admin', auth: 'ADMIN', tables: [['users', 'R'], ['farmer_profiles', 'R']], mw: ['requireAuth', 'requireAdmin'], desc: 'Paginated user list with role filter and name/email search (case-insensitive).', req: 'query: role, search, page, pageSize', res: '{ data, total, page, pageSize, totalPages }', file: 'modules/admin/admin.service.ts → listUsers' },
+  { id: 'ad-suspend', m: 'PATCH', p: '/v1/admin/users/:userId/suspend', mod: 'admin', auth: 'ADMIN', tables: [['users', 'RW'], ['refresh_tokens', 'W'], ['admin_actions', 'W']], mw: ['requireAuth', 'requireAdmin'], desc: 'isActive=false, deletes the user’s refresh tokens, writes audit row. Cannot suspend another admin. Takes effect immediately because requireAuth checks isActive per request.', req: '{ reason }', errs: ['400 FORBIDDEN (admin)', '404'], file: 'modules/admin/admin.service.ts → suspendUser', svc: ['auth', 'db'] },
+  { id: 'ad-reactivate', m: 'PATCH', p: '/v1/admin/users/:userId/reactivate', mod: 'admin', auth: 'ADMIN', tables: [['users', 'RW'], ['admin_actions', 'W']], mw: ['requireAuth', 'requireAdmin'], desc: 'isActive=true + audit row.', file: 'modules/admin/admin.service.ts → reactivateUser' },
+  { id: 'ad-farmers-pending', m: 'GET', p: '/v1/admin/farmers/pending', mod: 'admin', auth: 'ADMIN', tables: [['farmer_profiles', 'R'], ['users', 'R']], mw: ['requireAuth', 'requireAdmin'], desc: 'Farmer profiles with verificationStatus PENDING or IN_REVIEW, oldest first.', file: 'modules/admin/admin.service.ts → listPendingFarmerVerifications' },
+  { id: 'ad-farmer-verify', m: 'PATCH', p: '/v1/admin/farmers/:farmerId/verify', mod: 'admin', auth: 'ADMIN', tables: [['farmer_profiles', 'RW'], ['admin_actions', 'W']], mw: ['requireAuth', 'requireAdmin'], desc: 'approve → VERIFIED (+aadhaarVerified, bankVerified true); reject → REJECTED. Audit row.', req: '{ approve:boolean, reason? }', file: 'modules/admin/admin.service.ts → verifyFarmer' },
+  { id: 'ad-listings-pending', m: 'GET', p: '/v1/admin/listings/pending', mod: 'admin', auth: 'ADMIN', tables: [['land_listings', 'R'], ['farmer_profiles', 'R'], ['users', 'R']], mw: ['requireAuth', 'requireAdmin'], desc: 'Moderation queue: status = PENDING_REVIEW, oldest first.', file: 'modules/admin/admin.service.ts → listPendingListings' },
+  { id: 'ad-listing-moderate', m: 'PATCH', p: '/v1/admin/listings/:listingId/moderate', mod: 'admin', auth: 'ADMIN', tables: [['land_listings', 'RW'], ['admin_actions', 'W']], mw: ['requireAuth', 'requireAdmin'], desc: 'approve → ACTIVE (searchable); reject → REJECTED + rejectionReason. Audit row.', req: '{ approve:boolean, reason? }', file: 'modules/admin/admin.service.ts → moderateListing', note: 'A REJECTED listing has no resubmit path: owner PATCH only re-queues ACTIVE listings.' },
+  { id: 'ad-listing-remove', m: 'PATCH', p: '/v1/admin/listings/:listingId/remove', mod: 'admin', auth: 'ADMIN', tables: [['land_listings', 'RW'], ['admin_actions', 'W']], mw: ['requireAuth', 'requireAdmin'], desc: 'Force-archive any listing (takedown). Audit row.', req: '{ reason }', file: 'modules/admin/admin.service.ts → removeListing' },
+  { id: 'ad-bookings', m: 'GET', p: '/v1/admin/bookings', mod: 'admin', auth: 'ADMIN', tables: [['bookings', 'R'], ['land_listings', 'R'], ['users', 'R'], ['farmer_profiles', 'R']], mw: ['requireAuth', 'requireAdmin'], desc: 'All bookings, filter by status, paginated.', file: 'modules/admin/admin.service.ts → listAllBookings' },
+  { id: 'ad-audit', m: 'GET', p: '/v1/admin/audit-log', mod: 'admin', auth: 'ADMIN', tables: [['admin_actions', 'R'], ['users', 'R']], mw: ['requireAuth', 'requireAdmin'], desc: 'Paged audit trail (50/page) with admin name+email.', file: 'modules/admin/admin.service.ts → getAuditLog', note: 'API exists; the UI route /admin/audit-log is a "coming soon" placeholder in repo HEAD. A finished AdminAuditLogPage exists in the audit-log patch (not merged).' },
+
+  { id: 'ai-chat', m: 'POST', p: '/v1/ai/chat', mod: 'ai', auth: 'user', tables: [], mw: ['requireAuth', 'rateLimit 20/min', 'validate(body)'], desc: 'Persona chat (renter | farmer) for the AI Assistant / Farming AI pages. PR #1 switched it from Anthropic to Groq (OpenAI-compatible REST, llama-3.3-70b-versatile, temperature 0.5) with a longer agronomy-focused persona prompt. History is an in-memory Map (last 20 messages).', req: '{ message (≤2000), persona:"farmer"|"renter", conversationId? }', res: '{ message, conversationId, suggestedFollowUps[] }', errs: ['503 AI_NOT_CONFIGURED (no GROQ_API_KEY)', '503 AI_ERROR'], file: 'modules/ai/ai.service.ts → lib/groq.ts', svc: ['ai', 'auth'], note: 'History is per server instance and lost on restart/sleep; conversationId is trusted from the client. Unlike before there is no stub reply: without GROQ_API_KEY it returns 503.' },
+  { id: 'ai-assistant', m: 'POST', p: '/v1/ai/assistant', mod: 'ai', auth: 'none', tables: [['knowledge_chunks', 'R']], mw: ['rateLimit 15/min', 'validate(body)'], desc: 'Public RAG assistant behind the floating widget (PR #1). Embed the question locally (MiniLM, 384-d) → pgvector cosine top-4 → keep chunks with similarity > 0.3 → Groq answers with the chunks as Context in the system prompt. If pgvector or the table is missing/empty, retrieval silently falls back to keyword scoring over the in-code KNOWLEDGE_BASE.', req: '{ message (≤1000), conversationId? }', res: '{ message, conversationId, sources:[{title,category}] }', errs: ['422', '503 AI_NOT_CONFIGURED', '503 AI_ERROR'], file: 'modules/ai/rag.service.ts, lib/groq.ts, lib/embeddings.ts', svc: ['ai', 'db'], note: 'Anonymous callers can create unlimited conversationIds and the in-memory Map never evicts old ones (slow memory growth). The system prompt also lets the model answer general farming questions beyond the knowledge base.' },
+];
+
+/* ---------- FLOWS (sequence diagrams) ---------- */
+// lanes: B browser, F firebase, A api, D db, L llm
+const LANES = { B: 'Browser (React)', F: 'Firebase / Google', A: 'Express API', D: 'PostgreSQL', L: 'LLM' };
+const FLOWS = [
+  {
+    id: 'login', title: 'Google sign-in (first login)', lanes: ['B', 'F', 'A', 'D'],
+    intro: 'Firebase proves who the user is; Khetly then issues its own tokens. The Firebase ID token is verified once, on login, and never used again.',
+    steps: [
+      { f: 'B', t: 'F', l: 'signInWithPopup(Google)', svc: ['web', 'fb'], d: 'AuthModal / GoogleLoginPage calls Firebase JS SDK: `signInWithPopup(auth, provider)` with `provider.setCustomParameters({prompt:"select_account"})` so users can switch accounts.', file: 'apps/web/src/lib/firebase.ts, components/auth/AuthModal.tsx' },
+      { f: 'F', t: 'B', l: 'Firebase ID token (JWT, 1h)', svc: ['fb'], d: 'Google OAuth completes in the popup. Firebase returns a user and `user.getIdToken()` gives a short-lived RS256-signed JWT with uid, email, email_verified, name, picture.', },
+      { f: 'B', t: 'A', l: 'POST /v1/auth/google {idToken}', svc: ['web', 'api'], d: 'Plain JSON over HTTPS to `${VITE_API_URL}/v1`. No Authorization header yet. Route validated by zod: idToken non-empty.', file: 'modules/auth/auth.router.ts' },
+      { f: 'A', t: 'F', l: 'verifyIdToken (Admin SDK)', svc: ['api', 'fb'], d: '`firebase-admin` verifies the signature against Google’s public certs (cached), checks audience = FIREBASE_PROJECT_ID and expiry. Needs a service account: FIREBASE_PROJECT_ID / CLIENT_EMAIL / PRIVATE_KEY.', file: 'apps/api/src/lib/firebase-admin.ts' },
+      { f: 'F', t: 'A', l: 'decoded {uid,email,email_verified}', svc: ['fb'], d: 'API requires `email_verified === true`, otherwise 401 EMAIL_NOT_VERIFIED.' },
+      { f: 'A', t: 'D', l: 'find/create users row', svc: ['api', 'db', 'auth'], d: '`findUnique({firebaseUid})`. If missing → `create` with role RENTER, or ADMIN when email equals FIRST_ADMIN_EMAIL (admins get profileCompleted=true). If `isActive=false` → 403 ACCOUNT_SUSPENDED.', tbl: 'users' },
+      { f: 'A', t: 'D', l: 'INSERT refresh_tokens', svc: ['auth', 'db'], d: 'issueTokens(): sign access JWT (HS256, JWT_SECRET, 7d) and refresh JWT (JWT_REFRESH_SECRET, 90d); store the refresh token row with expiresAt = now+90d.', tbl: 'refresh_tokens' },
+      { f: 'A', t: 'B', l: '200 {user, tokens, isNewUser}', svc: ['api'], d: 'Envelope `{success:true,data}`. `needsProfileCompletion = !profileCompleted` tells the SPA to go to /complete-profile.' },
+      { f: 'B', t: 'B', l: 'persist in Zustand (khetly-auth)', svc: ['web'], d: 'Axios interceptor unwraps the envelope; auth.store saves user + tokens to localStorage key `khetly-auth`. Redirect: new user → /complete-profile; FARMER → /farmer/dashboard; others → /explore (or returnTo).', file: 'modules/auth/auth.store.ts' },
+    ],
+  },
+  {
+    id: 'complete', title: 'Complete profile / farmer onboarding', lanes: ['B', 'A', 'D'],
+    intro: 'Role is chosen once after first login. Only RENTER or FARMER can be self-selected; ADMIN is never selectable.',
+    steps: [
+      { f: 'B', t: 'A', l: 'POST /auth/complete-profile', svc: ['web', 'api', 'auth'], d: 'Body `{role, name, preferredLanguage}` with Bearer access token. Middleware chain: requireAuth → zod validate.', file: 'pages/onboarding/CompleteProfilePage.tsx' },
+      { f: 'A', t: 'D', l: 'UPDATE users (role,name,profileCompleted)', svc: ['db', 'auth'], d: 'Admins are rejected (400). Updates role, name, language, profileCompleted=true.', tbl: 'users' },
+      { f: 'A', t: 'D', l: 'UPSERT farmer_profiles (if FARMER)', svc: ['db'], d: 'Empty profile shell created immediately so later farmer endpoints have a row.', tbl: 'farmer_profiles' },
+      { f: 'A', t: 'D', l: 'INSERT refresh_tokens (new pair)', svc: ['auth', 'db'], d: 'Tokens are re-issued because the JWT carries `role` - the old token still says RENTER.', tbl: 'refresh_tokens' },
+      { f: 'A', t: 'B', l: '200 {user, tokens}', svc: ['api'], d: 'SPA replaces tokens in the store. FARMER → /farmer/onboarding (3 steps: profile, Aadhaar, bank) each doing PATCH /farmer/profile.' },
+      { f: 'B', t: 'A', l: 'PATCH /farmer/profile (x3 steps)', svc: ['web', 'api'], d: 'Step 1 address/bio, step 2 `{aadhaarNumber}`, step 3 bank/UPI. Whitelist-based service; see known gaps for the verification flags.', file: 'pages/onboarding/FarmerOnboardingPage.tsx' },
+    ],
+  },
+  {
+    id: 'request', title: 'Authenticated request + silent token refresh', lanes: ['B', 'A', 'D'],
+    intro: 'Every protected call goes through requireAuth, which hits the DB so suspensions and role changes apply instantly. When the access token expires, the Axios interceptor refreshes once for all queued requests.',
+    steps: [
+      { f: 'B', t: 'A', l: 'GET /v1/... Bearer <access>', svc: ['web', 'api'], d: 'Axios request interceptor adds `Authorization: Bearer`. Global middleware first: helmet → cors(FRONTEND_URL) → rateLimit 300/15min → json(10mb) → morgan.', file: 'apps/web/src/lib/api-client.ts' },
+      { f: 'A', t: 'D', l: 'requireAuth: verify JWT + SELECT user', svc: ['auth', 'db'], d: 'jwt.verify(JWT_SECRET) → `type==="access"` → `users.findUnique({id: sub})` → 401 if missing, 403 ACCOUNT_SUSPENDED if !isActive. Sets req.userId / userRole / userEmail. Role comes from the DB, not the token claim.', tbl: 'users', file: 'middleware/auth.middleware.ts' },
+      { f: 'A', t: 'B', l: '401 UNAUTHORIZED (expired)', svc: ['api', 'auth'], d: 'Expired/invalid access token.' },
+      { f: 'B', t: 'A', l: 'POST /auth/token/refresh {refreshToken}', svc: ['web', 'auth'], d: 'Response interceptor: on 401 and `!config._retry`, start ONE refresh; any other 401s wait in a queue (single-flight) and are replayed with the new token. If refresh fails → logout + redirect to login.', file: 'apps/web/src/lib/api-client.ts' },
+      { f: 'A', t: 'D', l: 'verify, SELECT/DELETE old, INSERT new', svc: ['auth', 'db'], d: 'verifyRefreshToken → row must exist and be unexpired → user active → delete old row → issue new pair (rotation).', tbl: 'refresh_tokens' },
+      { f: 'A', t: 'B', l: '200 new tokens → retry original', svc: ['api', 'web'], d: 'Original request replays with the new access token; user never sees an error.' },
+    ],
+  },
+  {
+    id: 'browse', title: 'Browse & search listings (public)', lanes: ['B', 'A', 'D'],
+    intro: 'Visitors can explore without signing in. Auth is requested only at the moment of an action (book, save) via AuthModal with intent + returnTo.',
+    steps: [
+      { f: 'B', t: 'A', l: 'GET /v1/listings?crop=&lat=&lng=…', svc: ['web', 'api'], d: 'ExplorePage uses React Query infinite query (page/pageSize 12). No auth header required; route is public.', file: 'pages/user/ExplorePage.tsx' },
+      { f: 'A', t: 'D', l: 'SELECT ACTIVE listings + farmer', svc: ['api', 'db'], d: 'Prisma `findMany` with status=ACTIVE and ILIKE-style `contains` on crop/title/village/tehsil/district/state, optional risk/landType/price filters. Includes farmer → user name/avatar.', tbl: 'land_listings' },
+      { f: 'A', t: 'A', l: 'haversine, radius, sort, paginate', svc: ['api'], d: 'All matching rows are loaded into memory; distanceKm computed with haversine (@khetly/utils); radius filter, sort (distance/price) and slice for the page are in Node.', file: 'modules/listings/listings.service.ts' },
+      { f: 'A', t: 'B', l: '200 {data,total,hasMore}', svc: ['api'], d: 'Rows re-shaped into `address{}`, `cropDetails{}`, `farmer{}`.' },
+      { f: 'B', t: 'A', l: 'GET /v1/listings/:id', svc: ['web', 'api'], d: 'Detail page. Server increments viewCount. "Book" opens AuthModal if not signed in, remembering intent and returnTo.' },
+    ],
+  },
+  {
+    id: 'listing', title: 'Farmer creates a listing → moderation', lanes: ['B', 'A', 'D'],
+    intro: 'Quality gate: new or edited-while-active listings are invisible until an admin approves them.',
+    steps: [
+      { f: 'B', t: 'A', l: 'POST /v1/listings {…}', svc: ['web', 'api'], d: 'ListingForm (react-hook-form + zod on the client). Server middleware: requireAuth → requireRole(FARMER, ADMIN). The server itself does no schema validation.', file: 'components/forms/ListingForm.tsx' },
+      { f: 'A', t: 'D', l: 'find farmer_profile by userId', svc: ['db'], d: 'Resolve farmerId from the caller. If none → error.', tbl: 'farmer_profiles' },
+      { f: 'A', t: 'D', l: 'INSERT land_listings (PENDING_REVIEW)', svc: ['db'], d: 'Flatten address/cropDetails into columns; status forced to PENDING_REVIEW.', tbl: 'land_listings' },
+      { f: 'A', t: 'B', l: '201 listing', svc: ['api'], d: 'Farmer sees the listing as "pending review".' },
+      { f: 'B', t: 'A', l: 'ADMIN: GET /admin/listings/pending', svc: ['web', 'api', 'auth'], d: 'Admin queue (requireAdmin).' },
+      { f: 'B', t: 'A', l: 'PATCH /admin/listings/:id/moderate {approve}', svc: ['web', 'api'], d: 'approve → ACTIVE, reject → REJECTED + reason.' },
+      { f: 'A', t: 'D', l: 'UPDATE listing + INSERT admin_actions', svc: ['db'], d: 'Two writes (not in a transaction): status change, then audit row APPROVE_LISTING / REJECT_LISTING.', tbl: 'admin_actions' },
+    ],
+  },
+  {
+    id: 'booking', title: 'Booking lifecycle', lanes: ['B', 'A', 'D'],
+    intro: 'Renter creates an ENQUIRY; the farmer responds; amounts are computed on the server.',
+    steps: [
+      { f: 'B', t: 'A', l: 'POST /v1/bookings', svc: ['web', 'api'], d: '`{listingId,startDate,durationMonths,selectedAddons,notes}` from ListingDetailPage. requireAuth only (any role).', file: 'pages/user/ListingDetailPage.tsx' },
+      { f: 'A', t: 'D', l: 'SELECT listing (must be ACTIVE)', svc: ['db'], d: '404 if missing, 400 UNAVAILABLE if not ACTIVE, 400 INVALID_DURATION if < minRentalMonths.', tbl: 'land_listings' },
+      { f: 'A', t: 'A', l: 'total = price × months; fee 8%', svc: ['api'], d: '`calcPlatformFee(total)` → platformFee, farmerReceives. endDate = addMonths(start, months). All snapshotted on the row.', file: 'packages/utils' },
+      { f: 'A', t: 'D', l: 'INSERT bookings (ENQUIRY)', svc: ['db'], d: 'farmerId copied from the listing.', tbl: 'bookings' },
+      { f: 'A', t: 'B', l: '201 booking', svc: ['api'], d: 'Appears in /my-bookings and in the farmer’s /farmer/bookings.' },
+      { f: 'B', t: 'A', l: 'FARMER: PATCH /farmer/bookings/:id/status', svc: ['web', 'api'], d: 'Farmer confirms/updates. Ownership checked; status transition NOT validated.' },
+      { f: 'B', t: 'A', l: 'RENTER: PATCH /bookings/:id/cancel', svc: ['web', 'api'], d: 'Allowed only when status is ENQUIRY or CONFIRMED and caller is the renter.' },
+    ],
+  },
+  {
+    id: 'suspend', title: 'Admin suspends a user', lanes: ['B', 'A', 'D'],
+    intro: 'Shows why requireAuth reads the DB on every request: suspension is enforced immediately even though the access token is valid for 7 days.',
+    steps: [
+      { f: 'B', t: 'A', l: 'PATCH /admin/users/:id/suspend {reason}', svc: ['web', 'api', 'auth'], d: 'requireAuth → requireAdmin. Admins cannot suspend admins.' },
+      { f: 'A', t: 'D', l: 'users.isActive = false', svc: ['db'], d: '', tbl: 'users' },
+      { f: 'A', t: 'D', l: 'DELETE refresh_tokens WHERE userId', svc: ['auth', 'db'], d: 'Kills refresh capability.', tbl: 'refresh_tokens' },
+      { f: 'A', t: 'D', l: 'INSERT admin_actions SUSPEND_USER', svc: ['db'], d: 'Audit trail with reason.', tbl: 'admin_actions' },
+      { f: 'B', t: 'A', l: '(victim) any request → 403', svc: ['auth', 'api'], d: 'requireAuth finds isActive=false → 403 ACCOUNT_SUSPENDED, so the existing 7-day access token is useless immediately. Login also blocked in googleSignIn().' },
+    ],
+  },
+  {
+    id: 'ai', title: 'AI chat - persona advisor (Groq)', lanes: ['B', 'A', 'L'],
+    intro: 'Authenticated chat with a persona system prompt (renter or farmer). PR #1 moved it from Anthropic to Groq. Conversation state is server memory, not the DB.',
+    steps: [
+      { f: 'B', t: 'A', l: 'POST /v1/ai/chat {message, persona}', svc: ['web', 'api', 'auth'], d: 'requireAuth → rate limit 20/min → zod (message ≤ 2000, persona farmer|renter). Used by AiChatPage (/ai-assistant) and FarmerAiPage (/farmer/ai).', file: 'modules/ai/ai.router.ts' },
+      { f: 'A', t: 'A', l: 'build messages: system + history + user', svc: ['api'], d: '`conversations: Map<id, ChatMessage[]>`, keeps the last 20. Lost on restart; not shared across instances.' },
+      { f: 'A', t: 'L', l: 'POST api.groq.com/openai/v1/chat/completions', svc: ['ai'], d: 'groqChat(): model GROQ_MODEL (default llama-3.3-70b-versatile), temperature 0.5, max_tokens 1024, Bearer GROQ_API_KEY. No key → 503 AI_NOT_CONFIGURED; non-2xx → 503 AI_ERROR.', file: 'apps/api/src/lib/groq.ts' },
+      { f: 'L', t: 'A', l: 'choices[0].message.content', svc: ['ai'], d: '' },
+      { f: 'A', t: 'B', l: '200 {message, conversationId}', svc: ['api'], d: 'No streaming; the whole answer is returned at once.' },
+    ],
+  },
+  {
+    id: 'rag', title: 'AI assistant - RAG widget (public)', lanes: ['B', 'A', 'D', 'L'],
+    intro: 'Merged in PR #1. Retrieval-Augmented Generation: ground the LLM on Khetly’s own knowledge base so platform answers (fees, verification, booking flow) are accurate. Retrieval degrades gracefully to keyword scoring if pgvector is unavailable.',
+    steps: [
+      { f: 'B', t: 'A', l: 'POST /v1/ai/assistant {message}', svc: ['web', 'api', 'ai'], d: 'AssistantWidget (floating button, mounted in AppShell so it appears on explore, listing, renter and farmer pages - not on /login or admin pages). Public endpoint: no token, 15 req/min/IP, message ≤ 1000 chars.', file: 'components/ai/AssistantWidget.tsx, modules/ai/assistant.hooks.ts' },
+      { f: 'A', t: 'A', l: 'embedText(question) → 384-d vector', svc: ['ai', 'api'], d: '@xenova/transformers runs Xenova/all-MiniLM-L6-v2 inside Node (lazy singleton, mean pooling, normalised). The ~90MB model downloads on first use and is cached on disk. No embedding API cost, but cold-start latency and RAM on a small Render instance.', file: 'apps/api/src/lib/embeddings.ts' },
+      { f: 'A', t: 'D', l: 'pgvector top-4 (embedding <=> $1)', svc: ['db', 'ai'], d: 'Raw SQL via $queryRawUnsafe (parameterised) against knowledge_chunks using the ivfflat cosine index. If the query throws (no extension/table) or returns zero rows, the code falls back to lexical scoring over the in-code KNOWLEDGE_BASE.', tbl: 'knowledge_chunks', file: 'modules/ai/rag.service.ts' },
+      { f: 'A', t: 'A', l: 'filter similarity > 0.3, build Context', svc: ['api'], d: 'Chunks above the threshold become `[Title]\ncontent` blocks appended to the system prompt; none → "No specific context found". The prompt also allows general agronomy answers (Rabi/Kharif crops etc.) and forbids inventing fees or policies.' },
+      { f: 'A', t: 'L', l: 'Groq chat/completions (system + history + user)', svc: ['ai'], d: 'llama-3.3-70b-versatile, temperature 0.3. History per conversationId kept in memory (last 16 messages = 8 exchanges).' },
+      { f: 'L', t: 'A', l: 'answer', svc: ['ai'], d: '' },
+      { f: 'A', t: 'B', l: '200 {message, conversationId, sources}', svc: ['api'], d: 'Widget appends the reply and stores conversationId for follow-ups; on any error it shows a friendly “couldn’t reach the assistant” message. Seed or refresh the KB with `pnpm --filter api seed:kb`.' },
+    ],
+  },
+  {
+    id: 'dispute', title: 'Review & dispute a booking (PR #1)', lanes: ['B', 'A', 'D'],
+    intro: 'Closes the loop after a rental: a renter can review a COMPLETED booking once, or raise a dispute from CONFIRMED / ACTIVE / COMPLETED. Both run from BookingsPage.',
+    steps: [
+      { f: 'B', t: 'A', l: 'POST /v1/bookings/:id/review {rating,comment,…}', svc: ['web', 'api'], d: 'requireAuth only; the service checks that the caller is the booking’s renter.', file: 'pages/user/BookingsPage.tsx' },
+      { f: 'A', t: 'D', l: 'SELECT booking + review', svc: ['db'], d: '404 / 403 / 400 NOT_COMPLETED (status must be COMPLETED) / 400 ALREADY_REVIEWED.', tbl: 'bookings' },
+      { f: 'A', t: 'D', l: 'INSERT reviews (ratings clamped 1-5)', svc: ['db'], d: 'Sub-ratings default to the overall rating. UNIQUE(bookingId) is the safety net against double submits.', tbl: 'reviews' },
+      { f: 'A', t: 'D', l: 'recompute farmer rating → UPDATE farmer_profiles', svc: ['db'], d: 'Averages ALL reviews on listings of that farmer and writes rating (2 dp) and reviewCount. Two separate writes, no transaction.', tbl: 'farmer_profiles' },
+      { f: 'A', t: 'B', l: '201 review', svc: ['api'], d: 'My Bookings refetches (getRenterBookings now includes `review`).' },
+      { f: 'B', t: 'A', l: 'PATCH /v1/bookings/:id/dispute {reason}', svc: ['web', 'api'], d: 'Renter only; status must be CONFIRMED, ACTIVE or COMPLETED → set DISPUTED and prefix notes with [DISPUTE: reason]. Nothing in the API resolves a dispute yet.' },
+    ],
+  },
+];
+
+/* ---------- OVERVIEW NODES ---------- */
+const NODES = {
+  browser: { title: 'React SPA (Browser)', svc: 'web', summary: 'Single-page app built with Vite. Public discovery pages, role-based dashboards for renter / farmer / admin. Talks only to the Express API (and Firebase for sign-in).',
+    tech: ['React 18 + TypeScript + Vite', 'Tailwind CSS, Radix Dialog', 'Zustand (persist+immer) for auth state', 'TanStack React Query (infinite queries, cache)', 'react-hook-form + zod for forms', 'Axios with interceptors', 'Firebase JS SDK (Google popup)'],
+    resp: ['Route guards: ProtectedRoute (allowedRoles) and PublicOnlyRoute', 'AuthModal opens at the moment of an action (intent + returnTo)', 'Single-flight 401 → refresh → retry queue', 'Unwraps the {success,data} envelope so hooks get plain data'],
+    files: ['apps/web/src/App.tsx (routes)', 'lib/api-client.ts (Axios)', 'lib/firebase.ts', 'modules/auth/* (store, hooks, guards)', 'components/auth/AuthModal.tsx'],
+    cfg: ['VITE_API_URL', 'VITE_FIREBASE_API_KEY / AUTH_DOMAIN / PROJECT_ID / STORAGE_BUCKET / MESSAGING_SENDER_ID / APP_ID'],
+    fail: ['localStorage holds tokens → XSS would expose them (trade-off vs httpOnly cookies)', 'Wrong VITE_API_URL or CORS (FRONTEND_URL) = every call fails'],
+    drill: [['tab', 'frontend', 'Open Frontend tab: routes & guards']],
+    iv: 'Why store tokens in localStorage? Simplicity with a separate API origin; mitigation is short lifetime + rotation, the better answer is httpOnly SameSite cookies.' },
+  vercel: { title: 'Vercel (static hosting / CDN)', svc: 'host', summary: 'Serves the built SPA from a CDN. All paths rewrite to /index.html so React Router handles deep links.',
+    tech: ['vercel.json: buildCommand `pnpm --filter web build`, outputDirectory `apps/web/dist`', 'rewrite `/(.*)` → `/index.html`'], resp: ['Static asset delivery', 'SPA fallback routing'], files: ['vercel.json', 'apps/web/vercel.json'], cfg: ['VITE_* env vars are baked in at build time'], fail: ['Changing VITE_ vars needs a rebuild/redeploy'], drill: [['tab', 'deploy', 'Open Deploy & Config tab']], iv: 'Free tier, global CDN, zero servers to run for the frontend.' },
+  firebase: { title: 'Firebase Authentication (Google)', svc: 'fb', summary: 'Identity provider. Handles the Google OAuth popup and issues a signed ID token. The backend verifies it ONCE via Admin SDK, then issues its own JWTs - Firebase is not in the request path after login.',
+    tech: ['Firebase Auth (Google provider)', 'firebase-admin `verifyIdToken` on the API', 'Service account credentials in env'], resp: ['Prove the user owns the Google account', 'email_verified guarantee', 'No passwords / OTP / SMS cost for Khetly to manage'],
+    files: ['apps/web/src/lib/firebase.ts', 'apps/api/src/lib/firebase-admin.ts', 'modules/auth/auth.service.ts → googleSignIn'], cfg: ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY (keep "\\n" escapes)', 'Authorized domains must include your Vercel domain'],
+    fail: ['`auth/unauthorized-domain` if the deployed domain is not whitelisted', 'Mangled private key newlines → Admin SDK init fails', 'Popup blockers'], drill: [['flow', 'login', 'Play the Google sign-in flow'], ['tab', 'auth', 'Open Auth deep-dive']],
+    iv: 'Why exchange the Firebase token for your own JWT? Own roles/claims, own expiry, no Firebase call per request, easy suspension via DB.' },
+  api: { title: 'Express API (Node + TypeScript)', svc: 'api', summary: 'REST API under /v1. Modular monolith: each domain has router → controller → service. Prisma is the only data access path.',
+    tech: ['Express 4/5, helmet, cors, morgan, express-rate-limit', 'zod (env + selected bodies)', 'Prisma ORM', 'jsonwebtoken, firebase-admin'], resp: ['Security headers, CORS locked to FRONTEND_URL', 'Global rate limit 300 req / 15 min / IP', 'Uniform envelope + error handler (AppError, Prisma P2002→409, P2025→404)', 'Business rules: fee 8%, moderation, ownership checks'],
+    files: ['apps/api/src/index.ts', 'middleware/{auth,validate,error}.middleware.ts', 'modules/*/(router|controller|service).ts', 'config/env.ts (zod-validated env; exits on bad config)'],
+    cfg: ['PORT, NODE_ENV, FRONTEND_URL', 'JWT_SECRET, JWT_REFRESH_SECRET, JWT_EXPIRES_IN, JWT_REFRESH_EXPIRES_IN', 'FIRST_ADMIN_EMAIL', 'GROQ_API_KEY (required for ALL AI endpoints)', 'GROQ_MODEL (default llama-3.3-70b-versatile)'], fail: ['Render free tier sleeps after ~15 min idle → 30-50 s cold start', 'Default dev JWT secrets if env not set (dangerous in prod)', 'In-memory AI history is per instance', 'GROQ_API_KEY is not in render.yaml or .env.example → AI endpoints return 503 in production until you add it'],
+    drill: [['tab', 'api', 'Open API reference'], ['mw', '', 'Show middleware chain']], iv: 'Layering: router (HTTP wiring) → controller (req/res) → service (business logic + Prisma). Easy to unit-test services.' },
+  mw: { title: 'Middleware pipeline', svc: 'api', summary: 'Order matters. Requests pass these in sequence before reaching a router; errors end in the global error handler.',
+    tech: ['1 helmet() - security headers', '2 cors({origin: FRONTEND_URL, credentials})', '3 rateLimit 300/15min (global)', '4 express.json 10mb + urlencoded', '5 morgan (dev / combined)', '6 router → [requireAuth → requireRole/requireAdmin → validate(zod)]', '7 notFoundHandler → errorHandler'],
+    resp: ['requireAuth: Bearer → jwt.verify → type=access → SELECT user (401 / 403 ACCOUNT_SUSPENDED)', 'requireRole(...roles): 403 FORBIDDEN', 'validate({body,query,params}): zod → 422 with details', 'Error envelope: {success:false,error,code,statusCode,details?}'], files: ['middleware/auth.middleware.ts', 'middleware/validate.middleware.ts', 'middleware/error.middleware.ts'], cfg: [], fail: ['Only auth + AI + complete-profile routes use zod validation; most others rely on TypeScript types that do not exist at runtime'], drill: [['tab', 'auth', 'Open Auth deep-dive']], iv: 'Authentication = who are you (requireAuth). Authorization = what may you do (requireRole + ownership checks in services).' },
+  db: { title: 'PostgreSQL on Supabase (via Prisma)', svc: 'db', summary: '8 tables: 7 application tables + knowledge_chunks (pgvector, added in PR #1). Prisma schema is the source of truth; migrations are applied with `db:deploy` in production.',
+    tech: ['PostgreSQL (Supabase free tier)', 'Prisma Client / Migrate', '`DATABASE_URL` = pooled PgBouncer (port 6543, ?pgbouncer=true)', '`DIRECT_URL` = direct 5432 for migrations', 'pgvector extension (enabled by the add_rag_knowledge_base migration)'], resp: ['Source of truth for users, roles, listings, bookings, audit', 'Refresh-token store (enables revocation)', 'Indexes on status, lat/lng, FK columns'],
+    files: ['apps/api/prisma/schema.prisma', 'prisma/migrations/20260909094519_khetly_dev', 'prisma/migrations/add_rag_knowledge_base (hand-written SQL)', 'lib/prisma.ts'], cfg: ['DATABASE_URL', 'DIRECT_URL'], fail: ['Supabase free projects pause after inactivity', 'Prisma + PgBouncer needs directUrl for migrate', 'P1000 = credentials mismatch', 'CREATE EXTENSION vector needs a Postgres that offers pgvector (Supabase does)'], drill: [['tab', 'db', 'Open Database tab (tables → schema)']], iv: 'Money snapshot on booking, soft-delete via ARCHIVED, audit table, denormalised rating - know why each exists.' },
+  ai: { title: 'Groq LLM + RAG', svc: 'ai', summary: 'Two AI features, both on Groq (llama-3.3-70b-versatile, OpenAI-compatible REST via plain fetch): the authenticated persona chat (/ai/chat) and the public RAG widget (/ai/assistant). RAG embeds questions locally with MiniLM and retrieves from pgvector, falling back to keyword scoring over the in-code knowledge base.',
+    tech: ['lib/groq.ts: fetch to api.groq.com/openai/v1/chat/completions, key GROQ_API_KEY, model GROQ_MODEL', '@xenova/transformers all-MiniLM-L6-v2 (384-d, mean pooling, normalised), lazy singleton', 'pgvector cosine (<=>), ivfflat lists=100, top-4, similarity > 0.3 filtered in app code', 'knowledge-base.ts: 13 curated chunks; `pnpm --filter api seed:kb` embeds + upserts them', 'Anthropic is no longer used (ANTHROPIC_API_KEY is dead config)'], resp: ['Persona advisor chat for signed-in renters/farmers', 'Public floating assistant that answers Khetly-platform questions from the knowledge base and general Indian farming questions', 'Graceful degradation: pgvector failure → lexical fallback'], files: ['modules/ai/{ai,rag}.service.ts, ai.router.ts, knowledge-base.ts, seed-knowledge-base.ts', 'lib/groq.ts, lib/embeddings.ts', 'web: components/ai/AssistantWidget.tsx, modules/ai/assistant.hooks.ts'], cfg: ['GROQ_API_KEY', 'GROQ_MODEL', 'TRANSFORMERS_CACHE (optional model cache dir)'], fail: ['No GROQ_API_KEY → 503 AI_NOT_CONFIGURED on both endpoints', 'Provider error → 503 AI_ERROR', 'Embedding model download (~90MB) and RAM on first request; Render disk is ephemeral so it can re-download after redeploys', 'Rate limits: 20/min (auth chat), 15/min (public assistant)', 'In-memory histories never evict conversation ids'], drill: [['flow', 'ai', 'Play persona chat flow'], ['flow', 'rag', 'Play RAG flow'], ['table', 'knowledge_chunks', 'Open knowledge_chunks table']], iv: 'RAG vs fine-tuning: RAG is cheaper, updatable by editing rows, and can show sources. pgvector vs Qdrant: one less service at this scale. Be ready to say the retrieval path has a lexical fallback and why a silent catch is a trade-off (resilient but hides misconfiguration).' },
+  render: { title: 'Render (API host)', svc: 'host', summary: 'Runs the Node API as a web service from render.yaml. Build runs migrations; health check keeps deploys safe.',
+    tech: ['render.yaml: runtime node, PORT 10000', 'build: `pnpm install --frozen-lockfile && pnpm --filter api prisma generate && pnpm db:deploy && pnpm --filter api build`', 'start: `pnpm --filter api start`', 'healthCheckPath: /health'], resp: ['Run API process', 'Apply migrations on each deploy'], files: ['render.yaml'], cfg: ['All secrets are `sync:false` (set in dashboard)'], fail: ['Free instance sleeps after ~15 min idle', 'Migration failure = failed deploy (good: old version keeps running)'], drill: [['tab', 'deploy', 'Open Deploy & Config tab']], iv: 'Run migrations in the build step so schema and code ship together; use `migrate deploy`, never `migrate dev`, in prod.' },
+};
+
+/* ---------- FRONTEND ROUTES ---------- */
+// guard: public | public-only | auth | RENTER | FARMER | ADMIN
+const ROUTES = [
+  { p: '/', c: '→ redirect /explore', g: 'public', api: [], note: 'Also the `*` fallback.' },
+  { p: '/login', c: 'GoogleLoginPage', g: 'public-only', api: ['POST /auth/google'], note: 'Logged-in users are redirected away (PublicOnlyRoute).' },
+  { p: '/explore', c: 'ExplorePage', g: 'public', api: ['GET /listings'], note: 'Search + filters, infinite scroll.' },
+  { p: '/listings/:id', c: 'ListingDetailPage', g: 'public', api: ['GET /listings/:id', 'POST /bookings'], note: 'Book button opens AuthModal if signed out.' },
+  { p: '/complete-profile', c: 'CompleteProfilePage', g: 'auth', api: ['POST /auth/complete-profile'], note: 'Choose Renter or Farmer.' },
+  { p: '/farmer/onboarding', c: 'FarmerOnboardingPage', g: 'auth', api: ['PATCH /farmer/profile'], note: '3 steps: profile, Aadhaar, bank.' },
+  { p: '/dashboard', c: 'RenterDashboard', g: 'RENTER', api: ['GET /users/me/stats', 'GET /bookings/mine'], note: '' },
+  { p: '/my-bookings', c: 'BookingsPage', g: 'RENTER', api: ['GET /bookings/mine', 'PATCH /bookings/:id/cancel', 'PATCH /bookings/:id/dispute', 'POST /bookings/:id/review'], note: '' },
+  { p: '/ai-assistant', c: 'AiChatPage', g: 'RENTER', api: ['POST /ai/chat'], note: 'persona: renter' },
+  { p: '/profile', c: 'ProfilePage', g: 'RENTER', api: ['PATCH /users/me'], note: '⚠ This is the call that accepts role.' },
+  { p: '/farmer/dashboard', c: 'FarmerDashboard', g: 'FARMER', api: ['GET /farmer/stats', 'GET /farmer/listings', 'GET /farmer/bookings'], note: 'Recent listings now load - /farmer/listings was added in PR #1.' },
+  { p: '/farmer/listings', c: 'FarmerListingsPage', g: 'FARMER', api: ['GET /farmer/listings'], note: 'Fixed in PR #1 (route added to farmer.router).' },
+  { p: '/farmer/listings/new', c: 'CreateListingPage', g: 'FARMER', api: ['POST /listings'], note: '' },
+  { p: '/farmer/listings/:id/edit', c: 'EditListingPage', g: 'FARMER', api: ['PATCH /listings/:id', 'DELETE /listings/:id'], note: '' },
+  { p: '/farmer/bookings', c: 'FarmerBookingsPage', g: 'FARMER', api: ['GET /farmer/bookings', 'PATCH /farmer/bookings/:id/status'], note: '' },
+  { p: '/farmer/ai', c: 'FarmerAiPage', g: 'FARMER', api: ['POST /ai/chat'], note: 'persona: farmer' },
+  { p: '/farmer/profile', c: 'FarmerProfilePage', g: 'FARMER', api: ['GET /farmer/profile', 'PATCH /farmer/profile'], note: '' },
+  { p: '/admin/dashboard', c: 'AdminDashboard', g: 'ADMIN', api: ['GET /admin/stats'], note: '' },
+  { p: '/admin/listings', c: 'AdminListingsPage', g: 'ADMIN', api: ['GET /admin/listings/pending', 'PATCH …/moderate', 'PATCH …/remove'], note: 'Moderation queue.' },
+  { p: '/admin/farmers', c: 'AdminFarmersPage', g: 'ADMIN', api: ['GET /admin/farmers/pending', 'PATCH …/verify'], note: '' },
+  { p: '/admin/users', c: 'AdminUsersPage', g: 'ADMIN', api: ['GET /admin/users', 'PATCH …/suspend', 'PATCH …/reactivate'], note: '' },
+  { p: '/admin/bookings', c: 'AdminBookingsPage', g: 'ADMIN', api: ['GET /admin/bookings'], note: '' },
+  { p: '/admin/audit-log', c: 'placeholder div', g: 'ADMIN', api: ['GET /admin/audit-log (unused)'], note: '"coming soon" in HEAD; AdminAuditLogPage is in the un-merged audit patch.' },
+];
+
+const JOURNEYS = {
+  Visitor: ['/explore', '/listings/:id', '/login', '/complete-profile'],
+  Renter: ['/login', '/complete-profile', '/explore', '/listings/:id', '/my-bookings', '/dashboard', '/ai-assistant'],
+  Farmer: ['/login', '/complete-profile', '/farmer/onboarding', '/farmer/listings/new', '/farmer/listings', '/farmer/bookings', '/farmer/dashboard'],
+  Admin: ['/login', '/admin/dashboard', '/admin/farmers', '/admin/listings', '/admin/users', '/admin/bookings', '/admin/audit-log'],
+};
+
+/* ---------- STATE MACHINES ---------- */
+const MACHINES = {
+  listing: {
+    title: 'ListingStatus', states: ['DRAFT', 'PENDING_REVIEW', 'ACTIVE', 'REJECTED', 'ARCHIVED', 'PAUSED'],
+    pos: { DRAFT: [30, 60], PENDING_REVIEW: [210, 60], ACTIVE: [400, 60], REJECTED: [210, 200], ARCHIVED: [400, 200], PAUSED: [30, 200] },
+    edges: [
+      ['PENDING_REVIEW', 'ACTIVE', 'admin approve', 'ok'], ['PENDING_REVIEW', 'REJECTED', 'admin reject', 'ok'],
+      ['ACTIVE', 'PENDING_REVIEW', 'owner edits', 'ok'], ['ACTIVE', 'ARCHIVED', 'owner delete / admin remove', 'ok'],
+      ['PENDING_REVIEW', 'ARCHIVED', 'owner delete / admin remove', 'ok'], ['REJECTED', 'ARCHIVED', 'owner delete', 'ok'],
+      ['REJECTED', 'PENDING_REVIEW', 'resubmit - NOT IMPLEMENTED', 'gap'], ['REJECTED', 'ACTIVE', 'mass-assignment exploit', 'bad'],
+    ],
+    notes: ['Created straight into PENDING_REVIEW (DRAFT is never written by the API).', 'PAUSED is defined but nothing sets it (dead state).', 'Only ACTIVE listings are searchable or bookable.'],
+  },
+  booking: {
+    title: 'BookingStatus', states: ['ENQUIRY', 'CONFIRMED', 'ACTIVE', 'COMPLETED', 'CANCELLED', 'DISPUTED'],
+    pos: { ENQUIRY: [30, 60], CONFIRMED: [210, 60], ACTIVE: [400, 60], COMPLETED: [580, 60], CANCELLED: [210, 200], DISPUTED: [400, 200] },
+    edges: [
+      ['ENQUIRY', 'CONFIRMED', 'farmer sets status', 'ok'], ['CONFIRMED', 'ACTIVE', 'farmer sets status', 'ok'], ['ACTIVE', 'COMPLETED', 'farmer sets status', 'ok'],
+      ['ENQUIRY', 'CANCELLED', 'renter cancel', 'ok'], ['CONFIRMED', 'CANCELLED', 'renter cancel', 'ok'],
+      ['CONFIRMED', 'DISPUTED', 'renter dispute', 'ok'], ['ACTIVE', 'DISPUTED', 'renter dispute', 'ok'], ['COMPLETED', 'DISPUTED', 'renter dispute', 'ok'], ['DISPUTED', 'COMPLETED', 'no resolution path', 'gap'], ['COMPLETED', 'ENQUIRY', 'farmer PATCH - unguarded', 'bad'], ['CANCELLED', 'ACTIVE', 'farmer PATCH - unguarded', 'bad'],
+    ],
+    notes: ['Intended path: ENQUIRY → CONFIRMED → ACTIVE → COMPLETED. The only enforced rule is renter-cancel from ENQUIRY/CONFIRMED.', 'Farmer endpoint accepts ANY status → any state (red edges are possible but should not be).', 'DISPUTED is now reachable (PR #1: renter raises a dispute) but nothing resolves it; payoutStatus is still a placeholder - no payment gateway.', 'Reviews (PR #1) are only allowed on COMPLETED bookings.', 'Earnings and “totalSpent” only count COMPLETED bookings.'],
+  },
+};
+
+/* ---------- RBAC MATRIX ---------- */
+const RBAC = {
+  roles: ['Visitor', 'RENTER', 'FARMER', 'ADMIN'],
+  rows: [
+    ['Browse / search / view listing', 1, 1, 1, 1],
+    ['Sign in (Google)', 1, 1, 1, 1],
+    ['Create booking', 0, 1, 1, 1],
+    ['Cancel own booking', 0, 1, 1, 1],
+    ['Create / edit / archive own listing', 0, 0, 1, 'x'],
+    ['Update booking status (own listings)', 0, 0, 1, 'x'],
+    ['Edit farmer profile / onboarding', 0, 0, 1, 'x'],
+    ['Edit own user (name/lang)', 0, 1, 1, 1],
+    ['AI assistant widget (/ai/assistant)', 1, 1, 1, 1],
+    ['Persona AI chat (/ai/chat)', 0, 1, 1, 1],
+    ['Dispute or review a booking (must be its renter)', 0, 1, 1, 1],
+    ['Moderate listings, verify farmers', 0, 0, 0, 1],
+    ['Suspend / reactivate users', 0, 0, 0, 1],
+    ['View audit log, all bookings, stats', 0, 0, 0, 1],
+  ],
+  note: '1 = allowed by the API, 0 = denied, x = passes requireRole but has no farmer_profile so the handler errors (admins cannot use farmer endpoints). The frontend guards add a second, cosmetic layer; the API is the real enforcement. Row “Edit own user” is ALSO a hole: it lets any role set role=ADMIN (see Known gaps).',
+};
+
+/* ---------- ENV / DEPLOY ---------- */
+const ENVVARS = [
+  ['DATABASE_URL', 'API', 'secret', 'Supabase pooled connection (port 6543, ?pgbouncer=true&connection_limit=1)'],
+  ['DIRECT_URL', 'API (Prisma Migrate)', 'secret', 'Supabase direct connection (5432)'],
+  ['JWT_SECRET', 'API', 'secret', 'HMAC key for access tokens. Has an insecure dev default - always set in prod.'],
+  ['JWT_REFRESH_SECRET', 'API', 'secret', 'HMAC key for refresh tokens. Same warning.'],
+  ['JWT_EXPIRES_IN / JWT_REFRESH_EXPIRES_IN', 'API', 'config', 'Default 7d / 90d'],
+  ['FIREBASE_PROJECT_ID', 'API', 'config', 'Admin SDK'],
+  ['FIREBASE_CLIENT_EMAIL', 'API', 'secret', 'Service account'],
+  ['FIREBASE_PRIVATE_KEY', 'API', 'secret', 'Service account key; keep \\n escapes'],
+  ['FRONTEND_URL', 'API', 'config', 'Exact CORS origin (your Vercel URL, no trailing slash)'],
+  ['FIRST_ADMIN_EMAIL', 'API', 'config', 'Whoever signs in first with this email becomes ADMIN'],
+  ['PORT / NODE_ENV', 'API', 'config', 'Render sets PORT=10000'],
+  ['GROQ_API_KEY', 'API', 'secret', 'REQUIRED for /ai/chat and /ai/assistant (503 without it). Not listed in render.yaml or .env.example yet - add it.'],
+  ['GROQ_MODEL', 'API', 'config', 'Default llama-3.3-70b-versatile'],
+  ['TRANSFORMERS_CACHE', 'API', 'config', 'Optional: where the MiniLM model is cached'],
+  ['ANTHROPIC_API_KEY', 'API', 'secret', 'Dead config: still in env.ts/.env.example but no code uses Anthropic after PR #1'],
+  ['VITE_API_URL', 'Web (build time)', 'public', 'API base URL (the app appends /v1)'],
+  ['VITE_FIREBASE_* (6 vars)', 'Web (build time)', 'public', 'Firebase web config - safe to expose'],
+];
+
+/* ---------- KNOWN GAPS (verified against repo HEAD 12eef13) ---------- */
+const GAPS = [
+  { sev: 'critical', t: 'Privilege escalation via PATCH /v1/users/me', ev: 'user.controller passes req.body straight into prisma.user.update (no zod, no whitelist). A RENTER can send {"role":"ADMIN"}; requireAuth reads the role from the DB, so the next request has admin rights - and the admin routes can suspend users and delete data.', fix: 'Replace with a strict zod schema: z.object({name, preferredLanguage}).strict(), and build the Prisma `data` object field by field. Add a test that role cannot be changed.', ep: 'usr-patch' },
+  { sev: 'high', t: 'Listing update mass-assignment (self-approval)', ev: 'listings.service.updateListing spreads req.body into `data`. status is only forced back to PENDING_REVIEW when the listing was ACTIVE, so a farmer can PATCH {"status":"ACTIVE"} on a PENDING/REJECTED listing and bypass moderation. farmerId, viewCount, bookingCount are writable too.', fix: 'Zod schema listing the editable fields; never accept status from the client; set status server-side.', ep: 'lst-update' },
+  { sev: 'high', t: 'Farmer can self-verify KYC flags', ev: 'farmer.service whitelist includes aadhaarVerified / bankVerified, and any aadhaarNumber sets aadhaarVerified=true. verificationStatus stays admin-only but the flags that the UI may show as "verified" are client-controlled.', fix: 'Remove the flags from the whitelist; set only via admin verify (or a real KYC provider).', ep: 'fm-profile-patch' },
+  { sev: 'fixed', t: 'FIXED in PR #1 - My Listings route mismatch', ev: 'The frontend called GET /v1/farmer/listings but the API had no such route. PR #1 added farmerRouter.get("/listings", ctrl.getMyListings) → farmer.service.getFarmerListings(userId, limit), and also made GET /farmer/bookings honour ?limit.', fix: 'Done. Optional cleanup: remove the now-unused GET /listings/farmer/mine.', ep: 'fm-listings' },
+  { sev: 'medium', t: 'Booking: no validation, self-booking, no overlap check', ev: 'createBooking trusts body types; durationMonths could be negative/fractional, startDate invalid. A farmer can book their own listing. Overlapping dates are not checked.', fix: 'zod schema (int ≥ minRentalMonths, future date), reject listing.farmer.userId === renterId, and add an availability check (range overlap query) inside a transaction.', ep: 'bk-create' },
+  { sev: 'medium', t: 'No booking state machine', ev: 'farmer updateBookingStatus does `status as never`. Any value, any order; unknown strings → Prisma 500.', fix: 'Allowed-transition map {ENQUIRY:[CONFIRMED,CANCELLED], CONFIRMED:[ACTIVE,CANCELLED], ACTIVE:[COMPLETED,DISPUTED]} + zod enum.', ep: 'fm-booking-status' },
+  { sev: 'medium', t: 'Non-public listings readable by id', ev: 'getListingById has no status filter; PENDING/REJECTED/ARCHIVED listings are returned to anonymous callers (and viewCount incremented).', fix: 'Return 404 unless ACTIVE, or the caller is the owner/admin.', ep: 'lst-get' },
+  { sev: 'medium', t: 'Admin cannot use farmer endpoints', ev: 'requireRole("FARMER","ADMIN") admits admins, but handlers look up farmer_profile by userId; admins have none → `throw new Error` → 500 (not a 4xx).', fix: 'Either remove ADMIN from those routes or throw AppError(403/404).', ep: 'lst-create' },
+  { sev: 'medium', t: 'aadhaarNumber is collected but not stored', ev: 'Onboarding step 2 sends {aadhaarNumber}; the schema has no column. Server only flips aadhaarVerified. Good for privacy, but it means there is no actual verification.', fix: 'Integrate a KYC provider or drop the claim of "verification" from the UI/resume.', ep: 'fm-profile-patch' },
+  { sev: 'low', t: 'Refresh tokens stored in plaintext', ev: 'refresh_tokens.token holds the raw JWT. A DB leak gives usable sessions.', fix: 'Store a SHA-256 hash and compare hashes.', ep: 'auth-refresh' },
+  { sev: 'low', t: 'Rejected listings cannot be resubmitted', ev: 'Only ACTIVE→PENDING_REVIEW is automatic. After REJECTED there is no transition back except the exploit.', fix: 'On owner edit of a REJECTED listing, set PENDING_REVIEW server-side.', ep: 'lst-update' },
+  { sev: 'low', t: 'Search is in-memory', ev: 'searchListings loads all ACTIVE rows, then filters/sorts/paginates in Node. OK at hundreds of rows.', fix: 'Bounding-box WHERE on lat/lng (index exists), DB-side orderBy/skip/take, later PostGIS.', ep: 'lst-search' },
+  { sev: 'low', t: 'Still-unused enum values and fields', ev: 'ListingStatus.PAUSED and PayoutStatus.* have no code path; photos have no upload endpoint (UPLOAD_DIR env unused). After PR #1 the reviews table and BookingStatus.DISPUTED are used.', fix: 'Implement or remove; document as roadmap.' },
+  { sev: 'medium', t: 'GROQ_API_KEY missing from deploy config; Anthropic is dead config', ev: 'render.yaml and apps/api/.env.example list ANTHROPIC_API_KEY but not GROQ_API_KEY. /ai/chat no longer has a stub fallback, so without the key BOTH AI endpoints return 503 AI_NOT_CONFIGURED in production.', fix: 'Add GROQ_API_KEY (+ optional GROQ_MODEL) to render.yaml (sync:false) and .env.example; drop ANTHROPIC_API_KEY. Run seed:kb once after the migration.', ep: 'ai-assistant' },
+  { sev: 'medium', t: 'Dispute and review endpoints are unvalidated and incomplete', ev: 'bookings.service raiseDispute/createBookingReview take req.body without zod: reason/comment length is unbounded, the dispute text is prepended into booking.notes, the farmer cannot respond, no admin endpoint resolves DISPUTED, and the review + farmer-rating recompute are separate writes without a transaction (the recompute also scans all of the farmer\u2019s reviews each time).', fix: 'zod schemas (rating 1-5 int, comment ≤ 1000, reason required ≤ 500); a dedicated disputes table or fields; admin resolve endpoint; wrap review + rating update in prisma.$transaction (or maintain running average).', ep: 'bk-dispute' },
+  { sev: 'low', t: 'RAG assistant: unbounded in-memory history and silent fallback', ev: 'The public /ai/assistant creates a fresh conversation id per anonymous call and the conversations Map never evicts keys (slow leak). retrieveRelevantChunks catches every error and silently falls back to lexical scoring, which hides a missing pgvector extension or an unseeded table. The MiniLM model is downloaded/cached on an ephemeral disk and held in RAM on a small instance.', fix: 'LRU/TTL cache or DB/Redis history; log a warning in the catch; warm the model at boot or move embeddings to an API; keep the rate limit.', ep: 'ai-assistant' },
+  { sev: 'low', t: 'RAG migration hygiene', ev: 'The migration folder is named add_rag_knowledge_base (no timestamp prefix) and a stray prisma/schema-addition.prisma was committed. The Prisma model uses Unsupported(\"vector\")? without dimension, so Prisma and the SQL migration can drift.', fix: 'Rename to a timestamped folder via prisma migrate, delete schema-addition.prisma, keep vector access in raw SQL only.' },
+  { sev: 'low', t: 'AI history is in-memory & unsynced', ev: 'Map keyed by client-supplied conversationId; lost on restart, not shared between instances; any user could guess another’s id.', fix: 'Persist conversations in DB/Redis keyed by userId + id.', ep: 'ai-chat' },
+  { sev: 'low', t: 'Multi-step writes not transactional', ev: 'e.g. moderateListing updates the listing then writes the audit row separately; a crash between them leaves no audit entry.', fix: 'prisma.$transaction([...]).' },
+];
+
+/* ---------- INTERVIEW Q&A ---------- */
+const QA = [
+  { c: 'Architecture', q: 'Walk me through the architecture of Khetly in 60 seconds.', a: 'A React SPA on Vercel talks JSON/HTTPS to a modular-monolith Express API on Render. Google sign-in is handled by Firebase; the API verifies the Firebase ID token once and issues its own short-lived access JWT + rotating refresh token. Data lives in PostgreSQL (Supabase) behind Prisma. Admins moderate listings and farmers; every admin action is audit-logged. Two Groq-powered AI features give advice: a persona chat for signed-in users and a public RAG widget grounded in a pgvector knowledge base.' },
+  { c: 'Architecture', q: 'Why a modular monolith instead of microservices?', a: 'One team, one deploy, one DB, free-tier hosting. Modules (auth, listings, bookings, farmer, admin, ai) each have router/controller/service, so they can be extracted later. Microservices would add network failures, distributed transactions and ops overhead with no scaling benefit at this size.' },
+  { c: 'Auth', q: 'Why Firebase for login AND your own JWTs?', a: 'Firebase solves the hard part (Google OAuth, email verification) without managing passwords. But a Firebase token has no Khetly role and would require a Firebase round-trip or SDK call on every request. Exchanging it once for our own JWT gives custom claims (role), our own expiry, offline verification (just HMAC), and lets us revoke via our DB.' },
+  { c: 'Auth', q: 'How do refresh-token rotation and logout work?', a: 'Refresh JWT (90d, separate secret) is stored in refresh_tokens. On /token/refresh we verify the signature, require the row to exist and be unexpired, delete it and insert a new one - so a refresh token is single-use. Logout deletes all rows for the user. The access token (7d) cannot be revoked itself, which is why requireAuth also checks the user row.' },
+  { c: 'Auth', q: 'A user is suspended - how fast does it take effect with a 7-day JWT?', a: 'Immediately. requireAuth does a DB lookup on every request and returns 403 ACCOUNT_SUSPENDED when isActive is false; suspendUser also deletes refresh tokens. Trade-off: one extra indexed query per request. A stateless alternative is a short access TTL (5-15 min) plus a deny-list.' },
+  { c: 'Auth', q: 'Authentication vs authorization here?', a: 'Authentication: requireAuth (valid access JWT + existing active user). Authorization: requireRole/requireAdmin for coarse role checks, then ownership checks inside services (listing.farmerId === profile.id, booking.renterId === userId). Role is read from the DB, not trusted from the token.' },
+  { c: 'Auth', q: 'How would you break this auth design?', a: 'The best answer is the real bug: PATCH /users/me spreads req.body into prisma.user.update, so a user can set their own role to ADMIN. Others: tokens in localStorage (XSS), plaintext refresh tokens in DB, default JWT secrets if env is missing. Fixes: strict zod schemas, httpOnly cookies, hashed refresh tokens, fail-fast on missing secrets.' },
+  { c: 'Database', q: 'Why PostgreSQL / Prisma?', a: 'Strongly relational data (users→farmers→listings→bookings→reviews), enums, arrays, transactions and indexes; plus pgvector for RAG in the same DB. Prisma gives typed queries and migrations. Cost: ORM overhead and awkward raw SQL for vectors (we use $queryRaw).' },
+  { c: 'Database', q: 'Why does DATABASE_URL differ from DIRECT_URL?', a: 'Supabase fronts Postgres with PgBouncer (transaction pooling, port 6543). Prisma Migrate needs session features that PgBouncer breaks, so schema commands use directUrl (5432) while the app uses the pooled URL with ?pgbouncer=true.' },
+  { c: 'Database', q: 'Why store platformFee, farmerReceives and platformFeePercent on the booking?', a: 'Snapshot pattern: price or fee-policy changes later must not rewrite history. Money is computed server-side (never trusted from the client) and stored so reports and payouts are reproducible. In production use integer paise/Decimal rather than Float.' },
+  { c: 'Database', q: 'How is a listing’s lifecycle modelled?', a: 'ListingStatus enum acts as a state machine: created as PENDING_REVIEW → admin approve ACTIVE / reject REJECTED; editing ACTIVE sends it back to review; delete = ARCHIVED (soft delete). Only ACTIVE is searchable/bookable. Gap: no REJECTED→PENDING resubmit and the status field is client-writable via mass-assignment.' },
+  { c: 'API', q: 'What is the response/error contract?', a: 'Success: {success:true,data}. Failure: {success:false,error,code,statusCode,details?}. Prisma P2002 → 409 and P2025 → 404, zod → 422 with details, AppError for domain errors. The Axios interceptor unwraps the envelope so UI code deals with plain data.' },
+  { c: 'API', q: 'Explain the middleware order and why.', a: 'helmet → cors → global rate-limit → body parser → logger → router-level [requireAuth → requireRole → validate] → controller → notFound → errorHandler. Cheap rejections (rate limit, auth) come before expensive work; validation before business logic; one error handler formats everything.' },
+  { c: 'API', q: 'Where is input validation and where is it missing?', a: 'zod covers env, /auth/*, and /ai/chat. Listings, bookings, farmer and users endpoints rely on TypeScript types, which vanish at runtime - the root of the mass-assignment issues. Fix: one zod schema per endpoint via the existing validate() middleware.' },
+  { c: 'Scaling', q: 'How would you scale search?', a: 'Today everything is loaded into memory and filtered with haversine. Step 1: bounding-box WHERE on indexed lat/lng and DB-side pagination. Step 2: PostGIS geography + GiST index (ST_DWithin). Step 3: dedicated search (Typesense/Elastic) with caching for the explore page.' },
+  { c: 'Scaling', q: 'What breaks first at 100× traffic?', a: '1) Render free-tier cold starts / single instance; 2) per-request user SELECT in requireAuth (add cache or shorter token + deny-list); 3) in-memory listing search; 4) PgBouncer connection limits; 5) in-memory AI history and rate-limit counters (need Redis once there are multiple instances).' },
+  { c: 'Frontend', q: 'How does the 401 refresh queue work?', a: 'Response interceptor: on 401 with !_retry, if a refresh is already in flight, the request waits in a queue; otherwise it starts one refresh call. When it resolves, all queued requests replay with the new token; if it fails, the store logs out. Single-flight prevents a stampede of parallel refreshes, which would break single-use rotation.' },
+  { c: 'Frontend', q: 'Why public browsing + AuthModal instead of forced login?', a: 'Product decision: let visitors see value first (listings), authenticate only on intent (book/save). AuthModal stores intent + returnTo so after Google sign-in the user lands exactly where they were. Guards: PublicOnlyRoute (login), ProtectedRoute(allowedRoles).' },
+  { c: 'AI', q: 'Explain RAG as built here.', a: 'Embed the question locally with MiniLM (384-d) → pgvector cosine search (ORDER BY embedding <=> $1, ivfflat) → take top-4 chunks, keep those with similarity > 0.3 → put them in the system prompt → Groq llama-3.3-70b answers at temperature 0.3, and the sources are returned to the widget. If pgvector or the table is unavailable it falls back to keyword scoring over the in-code knowledge base. Grounding reduces hallucination and the knowledge base is editable data (seed:kb), not model weights.' },
+  { c: 'AI', q: 'pgvector or a dedicated vector DB (Qdrant)?', a: 'pgvector: no new service, transactional with the rest of the data, plenty for thousands of chunks. Qdrant: better filtering, scale and ANN tuning once there are millions of vectors or heavy concurrent queries. Chose pgvector for cost and simplicity; the retrieval function is isolated so it can be swapped.' },
+  { c: 'AI', q: 'What are the weak spots of your RAG implementation?', a: 'No evaluation set, only 13 chunks, a similarity threshold picked by hand, a silent catch that hides misconfiguration, in-memory conversation history that never evicts, local embedding model cost (RAM, cold start), and a public endpoint that depends on rate limiting alone. Next steps: eval questions with expected sources, hybrid (keyword + vector) search, persisted history, caching, and logging retrieval hits.' },
+  { c: 'Product', q: 'How do reviews and disputes work?', a: 'Only the booking’s renter can review, only on a COMPLETED booking, once (checked in code and by UNIQUE(bookingId)). Ratings are clamped to 1-5 and the farmer’s rating and reviewCount are recomputed from all reviews. A renter can dispute a CONFIRMED/ACTIVE/COMPLETED booking, which sets DISPUTED and records the reason in notes. Gap: there is no resolution flow or transaction around the rating update.' },
+  { c: 'Security', q: 'List the security controls in the system.', a: 'Helmet headers, CORS to a single origin, global + AI rate limits, Google-verified emails, short-lived signed JWTs with separate refresh secret and rotation, per-request active-user check, role + ownership checks, soft-delete and audit log for admin actions, env validated at boot. Known holes: mass-assignment, plaintext refresh tokens, localStorage tokens.' },
+  { c: 'Product', q: 'What is the business model and where is it in the code?', a: 'Marketplace take-rate: 8% platform fee computed in calcPlatformFee and snapshotted on every booking (platformFee / farmerReceives). Admin dashboard sums platformFee for COMPLETED bookings as platformRevenue. Trust is built via farmer verification + listing moderation.' },
+];
+
+const PITCH = 'Khetly is a two-sided marketplace where urban renters lease small plots of farmland from verified farmers and receive the harvest. Technically: React/Vite SPA → Express/Prisma API → PostgreSQL, with Firebase Google login exchanged for our own rotating JWTs, role-based access (renter/farmer/admin), a moderated listing pipeline with an audit log, server-computed 8% commission, and Groq-powered AI: a persona chat and a pgvector RAG assistant widget.';
+
+</script>
+<script>
+/* ======================= APP ======================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const X = (t, id, label, cls) => `<a class="xref ${cls || ''}" data-x="${t}:${esc(id)}">${esc(label == null ? id : label)}</a>`;
+const TABS = [['overview', 'Overview'], ['flows', 'Request Flows'], ['journeys', 'User Journeys'], ['db', 'Database'], ['api', 'API Reference'], ['auth', 'Auth & RBAC'], ['frontend', 'Frontend'], ['deploy', 'Deploy & Config'], ['interview', 'Interview Prep']];
+const S = { tab: 'overview', svc: null, flow: 'login', step: 0, timer: null, stack: [], api: { mod: 'all', auth: 'all', q: '', gaps: false }, qa: 'All', route: 'all', env: 'all' };
+const ep = id => ENDPOINTS.find(e => e.id === id);
+const svcChip = k => `<span class="chip" style="border-color:${SVC[k].color}"><span style="color:${SVC[k].color}">●</span> ${SVC[k].name}</span>`;
+const epSvcs = e => { const s = new Set(['api']); if (e.tables && e.tables.length) s.add('db'); if (e.auth !== 'none' && e.auth !== '—') s.add('auth'); (e.svc || []).forEach(x => s.add(x)); return Array.from(s); };
+const patchBadge = '<span class="badge b-patch">NOT MERGED</span>';
+
+/* ---------- service highlight ---------- */
+function applySvc() {
+  $$('[data-svcs]').forEach(el => {
+    const on = !S.svc || el.getAttribute('data-svcs').split(' ').indexOf(S.svc) >= 0;
+    el.classList.toggle('dim', !on);
+  });
+  $$('#svcs .svc').forEach(b => b.classList.toggle('on', b.dataset.k === S.svc));
+}
+function buildSvcBar() {
+  $('#svcs').innerHTML = '<span class="lbl">Highlight service:</span>' + Object.keys(SVC).map(k => `<button class="svc" data-k="${k}" style="color:${SVC[k].color}" title="${esc(SVC[k].desc)}"><i style="background:${SVC[k].color}"></i><span style="color:var(--text)">${SVC[k].name}</span></button>`).join('');
+  $$('#svcs .svc').forEach(b => b.onclick = () => { S.svc = S.svc === b.dataset.k ? null : b.dataset.k; applySvc(); });
+}
+
+/* ---------- tabs ---------- */
+function buildNav() {
+  $('#nav').innerHTML = TABS.map(t => `<button data-t="${t[0]}">${t[1]}</button>`).join('');
+  $$('#nav button').forEach(b => b.onclick = () => goTab(b.dataset.t));
+}
+function goTab(t) {
+  S.tab = t;
+  $$('section.tab').forEach(s => s.classList.toggle('on', s.id === 'tab-' + t));
+  $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  try { history.replaceState(null, '', '#' + t); } catch (e) { /* file:// sandbox */ }
+  window.scrollTo(0, 0);
+  applySvc();
+}
+
+/* ---------- drawer ---------- */
+function openD(t, id, keep) {
+  if (!keep) S.stack = S.stack.filter(x => !(x.t === t && x.id === id));
+  S.stack.push({ t: t, id: id });
+  renderDrawer();
+}
+function renderDrawer() {
+  const d = $('#drawer');
+  if (!S.stack.length) { d.classList.remove('open'); return; }
+  const cur = S.stack[S.stack.length - 1];
+  $('#crumbs').innerHTML = S.stack.map((x, i) => i === S.stack.length - 1 ? `<b style="color:var(--text)">${esc(labelOf(x))}</b>` : `<a data-i="${i}">${esc(labelOf(x))}</a>`).join(' › ');
+  $$('#crumbs a').forEach(a => a.onclick = () => { S.stack = S.stack.slice(0, +a.dataset.i + 1); renderDrawer(); });
+  $('#dbody').innerHTML = DR[cur.t] ? DR[cur.t](cur.id) : 'Unknown';
+  $('#dbody').scrollTop = 0;
+  d.classList.add('open');
+  bindX($('#dbody'));
+  applySvc();
+}
+function labelOf(x) {
+  if (x.t === 'node') return NODES[x.id] ? NODES[x.id].title.split(' (')[0] : x.id;
+  if (x.t === 'ep') { const e = ep(x.id); return e ? e.m + ' ' + e.p : x.id; }
+  if (x.t === 'gap') return 'Gap #' + (+x.id + 1);
+  if (x.t === 'qa') return 'Question';
+  return x.id;
+}
+function closeD() { S.stack = []; renderDrawer(); }
+function bindX(root) {
+  $$('a[data-m]', root).forEach(a => a.onclick = e => { e.stopPropagation(); S.api = { mod: a.dataset.m, auth: 'all', q: '', gaps: false }; renderApi(); closeD(); goTab('api'); });
+  $$('[data-x]', root).forEach(a => a.onclick = e => {
+    e.stopPropagation();
+    if (root.id !== 'dbody') S.stack = [];
+    const v = a.getAttribute('data-x'); const i = v.indexOf(':'); const t = v.slice(0, i), id = v.slice(i + 1);
+    if (t === 'tab') { closeD(); goTab(id); return; }
+    if (t === 'flow') { closeD(); S.flow = id; S.step = 0; renderFlows(); goTab('flows'); return; }
+    openD(t, id, true);
+  });
+}
+
+function typeHtml(t) {
+  return esc(t).replace(/\b(UserRole|VerificationStatus|RiskLevel|ListingStatus|BookingStatus|HarvestSeason|LandType|SoilType|LogisticsOption|AddonType|PayoutStatus)\b/g, m => `<a class="xref" data-x="enum:${m}">${m}</a>`);
+}
+function usedBy(tbl) {
+  return ENDPOINTS.filter(e => (e.tables || []).some(t => t[0] === tbl)).map(e => ({ e: e, rw: e.tables.find(t => t[0] === tbl)[1] }));
+}
+function findEp(str) {
+  const m = /^(GET|POST|PATCH|DELETE)\s+(\S+)/.exec(str); if (!m) return null;
+  return ENDPOINTS.find(e => e.m === m[1] && !e.missing && e.p === '/v1' + m[2]) || null;
+}
+
+const DR = {
+  table(id) {
+    const t = TABLES[id]; if (!t) return 'Not found';
+    const ub = usedBy(id);
+    return `<h3>${esc(id)} ${t.patch ? patchBadge : ''}</h3>
+<p>${esc(t.purpose)}</p>
+<div class="kv"><b>Prisma model</b><span><code>${esc(t.model)}</code></span><b>Indexes</b><span>${t.indexes.map(i => `<code>${esc(i)}</code>`).join(' ')}</span></div>
+<h3>Schema (${t.cols.length} rows)</h3>
+<div class="scroll"><table><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Notes</th></tr>${t.cols.map(c => `<tr><td><code>${esc(c[0])}</code></td><td>${typeHtml(c[1])}</td><td>${esc(c[2])}</td><td>${esc(c[3])}</td></tr>`).join('')}</table></div>
+<h3>Relations</h3>${t.rel.length ? '<ul class="t">' + t.rel.map(r => `<li>${X('table', r[0])} <small>${esc(r[1])}</small> ${esc(r[2])}</li>`).join('') + '</ul>' : '<p>None (standalone).</p>'}
+<h3>Endpoints that touch it</h3>${ub.length ? '<ul class="t">' + ub.map(u => `<li><span class="badge m-${u.e.m}">${u.e.m}</span> ${X('ep', u.e.id, u.e.p)} <span class="chip">${u.rw}</span></li>`).join('') + '</ul>' : '<p>No endpoint in repo HEAD.</p>'}
+<h3>Sample row</h3><pre>${esc(JSON.stringify(t.sample, null, 2))}</pre>`;
+  },
+  enum(id) {
+    const v = ENUMS[id]; if (!v) return 'Not found';
+    const cols = []; Object.keys(TABLES).forEach(k => TABLES[k].cols.forEach(c => { if (c[1].indexOf(id) >= 0) cols.push([k, c[0]]); }));
+    return `<h3>enum ${esc(id)}</h3><p>${v.map(x => `<code>${x}</code>`).join(' ')}</p><h3>Used by</h3><ul class="t">${cols.map(c => `<li>${X('table', c[0])}.<code>${esc(c[1])}</code></li>`).join('')}</ul>`;
+  },
+  node(id) {
+    const n = NODES[id]; if (!n) return 'Not found';
+    let extra = '';
+    if (id === 'db') extra = `<h3>Tables – click to open schema</h3><p>${Object.keys(TABLES).map(k => X('table', k, k, 'chip')).join('')}</p><h3>Enums</h3><p>${Object.keys(ENUMS).map(k => X('enum', k, k, 'chip')).join('')}</p>`;
+    if (id === 'api') extra = `<h3>Modules → endpoints</h3><p>${['core', 'auth', 'listings', 'farmer', 'users', 'bookings', 'admin', 'ai'].map(m => `<a class="chip xref" data-m="${m}">${m} (${ENDPOINTS.filter(e => e.mod === m).length})</a>`).join('')}</p>`;
+    const drill = n.drill.map(d => d[0] === 'mw' ? X('node', 'mw', d[2], 'chip') : X(d[0], d[1], d[2], 'chip')).join('');
+    return `<h3>${esc(n.title)}</h3><p>${svcChip(n.svc)}</p><p>${esc(n.summary)}</p>
+<h3>Tech</h3><ul class="t">${n.tech.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+<h3>Responsibilities</h3><ul class="t">${n.resp.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+${extra}
+<h3>Key files</h3><ul class="t">${n.files.map(x => `<li><code>${esc(x)}</code></li>`).join('')}</ul>
+${n.cfg.length ? `<h3>Config</h3><ul class="t">${n.cfg.map(x => `<li><code>${esc(x)}</code></li>`).join('')}</ul>` : ''}
+<h3>Failure modes / gotchas</h3><ul class="t">${n.fail.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+<div class="callout note"><b>Interview angle:</b> ${esc(n.iv)}</div>
+<h3>Drill down</h3><p>${drill}</p>`;
+  },
+  edge(id) {
+    const e = EDGES.find(x => x.id === id); if (!e) return 'Not found';
+    return `<h3>${esc(e.title)}</h3><p>${esc(e.desc)}</p><p>${e.svc.map(svcChip).join('')}</p>${e.flow ? `<p>${X('flow', e.flow, 'Play the related request flow ▶', 'chip')}</p>` : ''}`;
+  },
+  ep(id) {
+    const e = ep(id); if (!e) return 'Not found';
+    return `<h3><span class="badge m-${e.m}">${e.m}</span> <code>${esc(e.p)}</code> ${e.patch ? patchBadge : ''} ${e.missing ? '<span class="badge b-gap">NOT IMPLEMENTED</span>' : ''}</h3>
+<p>${esc(e.desc)}</p>
+<div class="kv"><b>Module</b><span>${esc(e.mod)}</span><b>Auth</b><span>${esc(e.auth)}</span>
+<b>Middleware</b><span>${e.mw.length ? e.mw.map(m => `<code>${esc(m)}</code>`).join(' → ') : '—'}</span>
+<b>Source</b><span><code>${esc(e.file || '')}</code></span></div>
+${e.req ? `<h3>Request</h3><pre>${esc(e.req)}</pre>` : ''}${e.res ? `<h3>Response</h3><pre>${esc(e.res)}</pre>` : ''}
+${e.errs ? `<h3>Errors</h3><p>${e.errs.map(x => `<code>${esc(x)}</code>`).join(' ')}</p>` : ''}
+<h3>Tables touched</h3><p>${e.tables.length ? e.tables.map(t => X('table', t[0], t[0] + ' · ' + t[1], 'chip')).join('') : '—'}</p>
+<h3>Services involved</h3><p>${epSvcs(e).map(svcChip).join('')}</p>
+${e.gap ? `<div class="callout"><b>Known gap:</b> ${esc(e.gap)}</div>` : ''}${e.note ? `<div class="callout note">${esc(e.note)}</div>` : ''}`;
+  },
+  route(id) {
+    const r = ROUTES.find(x => x.p === id); if (!r) return 'Not found';
+    return `<h3><code>${esc(r.p)}</code></h3><div class="kv"><b>Component</b><span><code>${esc(r.c)}</code></span><b>Guard</b><span>${esc(r.g)}</span></div>
+<h3>API calls</h3><ul class="t">${r.api.length ? r.api.map(a => { const e = findEp(a); return `<li>${e ? X('ep', e.id, a) : esc(a)}</li>`; }).join('') : '<li>none</li>'}</ul>
+${r.note ? `<div class="callout note">${esc(r.note)}</div>` : ''}`;
+  },
+  gap(i) {
+    const g = GAPS[+i]; if (!g) return 'Not found';
+    return `<h3>${esc(g.t)}</h3><p><span class="sev ${g.sev}">${g.sev}</span></p><h3>Evidence in code</h3><p>${esc(g.ev)}</p><h3>Fix</h3><p>${esc(g.fix)}</p>${g.ep ? `<p>${X('ep', g.ep, 'Open the endpoint →', 'chip')}</p>` : ''}`;
+  },
+  qa(i) {
+    const q = QA[+i]; return `<h3>${esc(q.q)}</h3><p>${esc(q.a)}</p><p><span class="chip">${esc(q.c)}</span></p>`;
+  },
+};
+
+/* ---------- OVERVIEW ---------- */
+const EDGES = [
+  { id: 'e-web-api', title: 'Browser → API: HTTPS JSON on /v1', desc: 'Axios client with baseURL `${VITE_API_URL}/v1`, 30s timeout, Bearer access token, envelope unwrapping and a single-flight 401 refresh queue. CORS allows only FRONTEND_URL.', svc: ['web', 'api'], flow: 'request' },
+  { id: 'e-web-fb', title: 'Browser → Firebase: Google popup', desc: 'Firebase JS SDK signInWithPopup with prompt=select_account. Returns a Firebase ID token (JWT, ~1h).', svc: ['web', 'fb'], flow: 'login' },
+  { id: 'e-api-fb', title: 'API → Firebase: verifyIdToken', desc: 'firebase-admin verifies the signature/audience/expiry of the ID token using Google’s public keys; requires email_verified. Called once per login.', svc: ['api', 'fb'], flow: 'login' },
+  { id: 'e-api-db', title: 'API → PostgreSQL: Prisma', desc: 'All data access via Prisma Client over the pooled Supabase connection (PgBouncer, port 6543). Migrations use DIRECT_URL (5432). Raw SQL only for pgvector in the AI patch.', svc: ['api', 'db'], flow: 'browse' },
+  { id: 'e-api-ai', title: 'API → LLM: REST', desc: 'lib/groq.ts: plain fetch() to Groq’s OpenAI-compatible /chat/completions (llama-3.3-70b-versatile). Used by both /ai/chat and the RAG /ai/assistant (with retrieved context). No GROQ_API_KEY → 503 AI_NOT_CONFIGURED.', svc: ['api', 'ai'], flow: 'ai' },
+  { id: 'e-vercel', title: 'Vercel serves the SPA', desc: 'Static build output from a CDN; rewrites every path to index.html so client-side routing works on refresh.', svc: ['host', 'web'] },
+  { id: 'e-render', title: 'Render runs the API', desc: 'Node web service; build step runs `prisma generate` and `db:deploy` (migrations) before `build`. Health check /health.', svc: ['host', 'api'] },
+];
+function renderOverview() {
+  const nodes = [
+    ['browser', 30, 60, 230, 100, 'React SPA', 'Vite · Zustand · React Query'],
+    ['vercel', 30, 200, 230, 56, 'Vercel', 'static CDN + SPA rewrite'],
+    ['firebase', 30, 310, 230, 90, 'Firebase Auth', 'Google sign-in · ID token'],
+    ['render', 340, 480, 330, 56, 'Render', 'Node host · migrations on deploy'],
+    ['db', 770, 60, 210, 150, 'PostgreSQL', 'Supabase · Prisma · 8 tables'],
+    ['ai', 770, 300, 210, 100, 'LLM', 'Groq · RAG widget · pgvector'],
+  ];
+  const mods = ['auth', 'listings', 'farmer', 'users', 'bookings', 'admin', 'ai'];
+  let svg = `<svg viewBox="-40 0 1050 570" width="100%" role="img" aria-label="Khetly architecture"><defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>`;
+  // edges
+  const E = (id, d, lbl, lx, ly, dash) => `<g data-svcs="${EDGES.find(e => e.id === id).svc.join(' ')}" data-x="edge:${id}" class="xe"><path class="edge ${dash ? 'dash' : ''}" d="${d}" marker-end="url(#ar)"/><text x="${lx}" y="${ly}" font-size="11" text-anchor="middle" class="mut">${lbl}</text></g>`;
+  svg += E('e-web-api', 'M260 100 L340 100', 'HTTPS /v1', 300, 90);
+  svg += E('e-web-fb', 'M30 120 C-14 120 -14 350 30 350', '', 0, 0).replace('</g>', '<text transform="translate(-22 235) rotate(-90)" font-size="11" text-anchor="middle" class="mut">Google popup</text></g>');
+  svg += E('e-api-fb', 'M340 355 L260 355', 'verifyIdToken', 300, 345);
+  svg += E('e-api-db', 'M670 130 L770 130', 'Prisma', 720, 120);
+  svg += E('e-api-ai', 'M670 350 L770 350', 'REST', 720, 340);
+  svg += E('e-vercel', 'M145 200 L145 162', 'serves', 175, 185, true);
+  svg += E('e-render', 'M505 480 L505 444', 'hosts', 535, 468, true);
+  // api group
+  svg += `<g class="node" data-x="node:api" data-svcs="api"><rect x="340" y="40" width="330" height="404" rx="14" style="stroke:${SVC.api.color}"/><text x="355" y="64" font-size="15" font-weight="700">Express API</text><text x="355" y="82" font-size="11" class="mut">/v1 · modular monolith · Prisma</text></g>`;
+  svg += `<g class="node" data-x="node:mw" data-svcs="api auth"><rect x="358" y="96" width="294" height="62" rx="9" style="stroke:${SVC.auth.color}"/><text x="370" y="117" font-size="12" font-weight="700">Middleware pipeline</text><text x="370" y="135" font-size="10.5" class="mut">helmet → cors → rateLimit → json → requireAuth</text><text x="370" y="149" font-size="10.5" class="mut">→ requireRole → zod validate → errorHandler</text></g>`;
+  mods.forEach((m, i) => {
+    const x = 358 + (i % 2) * 150, y = 176 + Math.floor(i / 2) * 62;
+    const n = ENDPOINTS.filter(e => e.mod === m).length;
+    const sv = m === 'auth' ? 'api auth fb db' : m === 'ai' ? 'api ai' : 'api db';
+    svg += `<g class="node" data-m="${m}" data-svcs="${sv}"><rect x="${x}" y="${y}" width="144" height="52" rx="8" style="stroke:${SVC.api.color}"/><text x="${x + 10}" y="${y + 22}" font-size="13" font-weight="600">${m}</text><text x="${x + 10}" y="${y + 40}" font-size="10.5" class="mut">${n} endpoints</text></g>`;
+  });
+  svg += `<text x="358" y="430" font-size="10.5" class="mut">router → controller → service → Prisma</text>`;
+  nodes.forEach(n => {
+    const c = SVC[NODES[n[0]].svc].color;
+    svg += `<g class="node" data-x="node:${n[0]}" data-svcs="${NODES[n[0]].svc}${n[0] === 'db' ? '' : ''}"><rect x="${n[1]}" y="${n[2]}" width="${n[3]}" height="${n[4]}" rx="12" style="stroke:${c}"/><text x="${n[1] + 14}" y="${n[2] + 26}" font-size="14" font-weight="700">${n[5]}</text><text x="${n[1] + 14}" y="${n[2] + 45}" font-size="11" class="mut">${n[6]}</text></g>`;
+  });
+  // tiny table chips inside db node
+  const tn = Object.keys(TABLES);
+  tn.forEach((t, i) => {
+    const x = 782 + (i % 2) * 98, y = 118 + Math.floor(i / 2) * 22;
+    if (y > 196) return;
+    svg += `<g class="node" data-x="table:${t}" data-svcs="db"><rect x="${x}" y="${y - 12}" width="92" height="18" rx="4" style="stroke:${SVC.db.color};stroke-width:1"/><text x="${x + 6}" y="${y + 1}" font-size="9.5">${t.length > 15 ? t.slice(0, 14) + '…' : t}</text></g>`;
+  });
+  svg += '</svg>';
+  const crit = GAPS.filter(g => g.sev === 'critical' || g.sev === 'high').length;
+  $('#tab-overview').innerHTML = `
+<div class="banner"><b>⚠ ${crit} critical/high issues were found while mapping this code</b> (e.g. any user can PATCH <code>/users/me</code> with <code>role:"ADMIN"</code>). They are marked in the API reference and listed in <a data-x="tab:interview">Interview Prep → Known gaps</a>.</div>
+<h2>Architecture at a glance</h2>
+<p class="sub">Click any box or arrow for details. Click a service chip in the header to highlight everything that involves it (here, in flows and in the API list). Click <b>Database</b> → a table → its schema.</p>
+<div class="card" style="padding:6px">${svg}</div>
+<h3>What changed in PR #1 (Rag-implementation → f486f94)</h3>
+<div class="grid">
+<div class="card" data-svcs="ai api db"><b>RAG assistant</b><br>Public <code>POST /ai/assistant</code> + floating widget; Groq, local MiniLM embeddings, pgvector <code>knowledge_chunks</code>, keyword fallback. ${X('flow', 'rag', 'Play flow ▶', 'chip')}</div>
+<div class="card" data-svcs="ai api"><b>Persona chat moved to Groq</b><br><code>/ai/chat</code> no longer uses Anthropic. ${X('flow', 'ai', 'Play flow ▶', 'chip')}</div>
+<div class="card" data-svcs="api db"><b>Reviews &amp; disputes</b><br><code>POST /bookings/:id/review</code> and <code>PATCH /bookings/:id/dispute</code>; the reviews table is live. ${X('flow', 'dispute', 'Play flow ▶', 'chip')}</div>
+<div class="card" data-svcs="api"><b>Fixed route mismatch</b><br><code>GET /farmer/listings</code> added; farmer bookings honour <code>?limit</code>.</div>
+<div class="card" data-svcs="db"><b>New table</b><br>${X('table', 'knowledge_chunks', 'knowledge_chunks', 'chip')} (vector(384), ivfflat).</div>
+<div class="card" style="border-color:var(--bad)"><b>Not changed</b><br>users, listings, admin and index.ts are untouched, so the <code>role:"ADMIN"</code> escalation and listing self-approval are still open.</div></div>
+<h3>Elevator pitch</h3><div class="card">${esc(PITCH)}</div>
+<h3>How to use this page</h3>
+<div class="grid">
+<div class="card"><b>Request Flows</b><br>Step-by-step sequence diagrams: login, refresh, search, listing, booking, suspend, AI/RAG. Click any step.</div>
+<div class="card"><b>User Journeys</b><br>Per-role click paths; each screen links to its guard and API calls.</div>
+<div class="card"><b>Database</b><br>ER map → table → columns, indexes, relations, who reads/writes. Plus status state machines.</div>
+<div class="card"><b>API Reference</b><br>Every endpoint with middleware, tables touched, and verified gaps.</div>
+<div class="card"><b>Interview Prep</b><br>20 Q&As, design trade-offs and a gap list you can discuss honestly.</div>
+</div>
+<h3>Tech stack cheat sheet</h3>
+<div class="scroll"><table><tr><th>Layer</th><th>Choice</th><th>Why</th></tr>
+<tr><td>Frontend</td><td>React 18, Vite, TS, Tailwind, Zustand, React Query, RHF+zod</td><td>Fast dev, typed forms, server-state cache</td></tr>
+<tr><td>Identity</td><td>Firebase Auth (Google)</td><td>No passwords/OTP to run; verified emails</td></tr>
+<tr><td>Session</td><td>Own JWT: access 7d (HS256) + refresh 90d rotated in DB</td><td>Custom role claim, revocation, offline verify</td></tr>
+<tr><td>API</td><td>Express, helmet, cors, rate-limit, zod, morgan</td><td>Simple, well known</td></tr>
+<tr><td>Data</td><td>PostgreSQL (Supabase) + Prisma</td><td>Relational + enums + pgvector, typed ORM</td></tr>
+<tr><td>AI</td><td>Groq llama-3.3-70b + local MiniLM embeddings + pgvector RAG</td><td>Free-tier friendly RAG</td></tr>
+<tr><td>Hosting</td><td>Vercel + Render + Supabase</td><td>$0 to launch (cold-start trade-off)</td></tr></table></div>`;
+  const root = $('#tab-overview'); bindX(root);
+  $$('[data-m]', root).forEach(g => g.onclick = e => { e.stopPropagation(); S.api = { mod: g.dataset.m, auth: 'all', q: '', gaps: false }; renderApi(); closeD(); goTab('api'); });
+  $$('g.xe', root).forEach(g => g.setAttribute('data-x', g.getAttribute('data-x')));
+  bindX(root);
+}
+
+/* ---------- FLOWS ---------- */
+function renderFlows() {
+  const f = FLOWS.find(x => x.id === S.flow) || FLOWS[0];
+  const W = 960, left = 100, right = W - 100, n = f.lanes.length;
+  const lx = i => n === 1 ? W / 2 : left + i * (right - left) / (n - 1);
+  const idx = k => f.lanes.indexOf(k);
+  const rowH = 54, top = 70, H = top + f.steps.length * rowH + 20;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img"><defs><marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--text)"/></marker></defs>`;
+  f.lanes.forEach((k, i) => {
+    const sv = { B: 'web', F: 'fb', A: 'api', D: 'db', L: 'ai' }[k];
+    svg += `<g data-svcs="${sv}"><rect x="${lx(i) - 70}" y="10" width="140" height="34" rx="8" fill="var(--panel)" stroke="${SVC[sv].color}" stroke-width="2"/><text x="${lx(i)}" y="32" font-size="12" font-weight="700" text-anchor="middle">${LANES[k]}</text><line x1="${lx(i)}" y1="44" x2="${lx(i)}" y2="${H - 8}" stroke="var(--line)" stroke-dasharray="4 4"/></g>`;
+  });
+  f.steps.forEach((s, i) => {
+    const y = top + i * rowH + 20, a = lx(idx(s.f)), b = lx(idx(s.t));
+    const ret = /^(\d{3}|decoded|Firebase ID|content|answer)/.test(s.l);
+    let g = `<g class="step ${i === S.step ? 'act' : ''}" data-i="${i}" data-svcs="${s.svc.join(' ')}"><rect class="hl" x="8" y="${y - 24}" width="${W - 16}" height="${rowH - 4}" rx="8"/>`;
+    g += `<circle cx="22" cy="${y - 4}" r="10" fill="var(--accent)"/><text x="22" y="${y}" font-size="11" fill="#fff" text-anchor="middle" style="fill:#fff;font-weight:700">${i + 1}</text>`;
+    if (a === b) {
+      g += `<path d="M${a} ${y - 10} h46 v22 h-46" fill="none" stroke="var(--text)" stroke-width="2" marker-end="url(#fa)"/><text x="${a + 56}" y="${y + 3}" font-size="12">${esc(s.l)}</text>`;
+    } else {
+      const dir = b > a ? 1 : -1;
+      g += `<line x1="${a}" y1="${y}" x2="${b - dir * 2}" y2="${y}" stroke="var(--text)" stroke-width="2" ${ret ? 'stroke-dasharray="6 4"' : ''} marker-end="url(#fa)"/>`;
+      g += `<text x="${(a + b) / 2}" y="${y - 7}" font-size="12" text-anchor="middle">${esc(s.l)}</text>`;
+    }
+    g += '</g>';
+    svg += g;
+  });
+  svg += '</svg>';
+  const s = f.steps[S.step];
+  $('#tab-flows').innerHTML = `
+<h2>Request flows</h2>
+<p class="sub">Pick a flow, then press ▶ or click any step (← → keys also work). Dashed arrows are responses.</p>
+<div class="pick">${FLOWS.map(x => `<button data-f="${x.id}" class="${x.id === S.flow ? 'on' : ''}">${esc(x.title.replace(' - persona advisor (Groq)', ' (persona)'))}${x.patch ? ' ◇' : ''}</button>`).join('')}</div>
+<div class="card"><b>${esc(f.title)}</b> ${f.patch ? patchBadge : ''}<p style="margin:4px 0 0">${esc(f.intro)}</p></div>
+<div class="ctrls"><button class="btn" id="fprev">◀ Prev</button><button class="btn pri" id="fplay">${S.timer ? '❚❚ Pause' : '▶ Play'}</button><button class="btn" id="fnext">Next ▶</button><span style="color:var(--muted);align-self:center">Step ${S.step + 1} / ${f.steps.length}</span></div>
+<div class="card" style="padding:6px">${svg}</div>
+<div class="card" style="margin-top:12px"><h3 style="margin-top:0">${S.step + 1}. ${esc(s.l)}</h3><p>${esc(s.d || '')}</p>
+<p>${s.svc.map(svcChip).join('')}</p>
+${s.file ? `<p>File: <code>${esc(s.file)}</code></p>` : ''}${s.tbl ? `<p>Table: ${X('table', s.tbl, s.tbl, 'chip')}</p>` : ''}</div>`;
+  const root = $('#tab-flows');
+  $$('[data-f]', root).forEach(b => b.onclick = () => { stopPlay(); S.flow = b.dataset.f; S.step = 0; renderFlows(); });
+  $$('.step', root).forEach(g => g.onclick = () => { S.step = +g.dataset.i; renderFlows(); });
+  $('#fprev').onclick = () => { stopPlay(); stepFlow(-1); };
+  $('#fnext').onclick = () => { stopPlay(); stepFlow(1); };
+  $('#fplay').onclick = () => { if (S.timer) { stopPlay(); renderFlows(); } else { S.timer = setInterval(() => { if (!stepFlow(1)) stopPlay(); }, 1800); renderFlows(); } };
+  bindX(root); applySvc();
+}
+function stepFlow(d) {
+  const f = FLOWS.find(x => x.id === S.flow); const n = S.step + d;
+  if (n < 0 || n >= f.steps.length) { return false; }
+  S.step = n; renderFlows(); return true;
+}
+function stopPlay() { if (S.timer) { clearInterval(S.timer); S.timer = null; } }
+
+/* ---------- JOURNEYS ---------- */
+function renderJourneys() {
+  const guards = { public: 'Anyone', 'public-only': 'Only when signed out', auth: 'Any signed-in user', RENTER: 'Role RENTER', FARMER: 'Role FARMER', ADMIN: 'Role ADMIN' };
+  $('#tab-journeys').innerHTML = `<h2>User journeys</h2>
+<p class="sub">The click path each persona follows. Click a screen to see its component, route guard and API calls. Colour bar = guard.</p>
+${Object.keys(JOURNEYS).map(role => `<h3>${role}</h3><div class="journey" data-svcs="web">${JOURNEYS[role].map(p => { const r = ROUTES.find(x => x.p === p); return `<span class="jstep g-${r.g}" data-x="route:${esc(p)}">${esc(p)}</span>`; }).join('<span class="jarrow">→</span>')}</div>`).join('')}
+<h3>Guard legend</h3><div class="legend">${Object.keys(guards).map(g => `<span><i class="g-${g}" style="background:var(--panel2);border-left:4px solid"></i>${g} – ${guards[g]}</span>`).join('')}</div>
+<h3>What happens after Google login (decision tree)</h3>
+<pre>signed in?
+ ├─ no  → /explore (public)      Book/Save click → AuthModal(intent, returnTo)
+ └─ yes → needsProfileCompletion?
+           ├─ yes → /complete-profile → choose role
+           │         ├─ FARMER → /farmer/onboarding (3 steps) → /farmer/dashboard
+           │         └─ RENTER → /explore
+           └─ no  → role?
+                     ├─ ADMIN  → /admin/dashboard
+                     ├─ FARMER → /farmer/dashboard
+                     └─ RENTER → returnTo ?? /explore</pre>
+<p class="sub">Route guard code: <code>ProtectedRoute</code> redirects wrong-role users to their home (<code>FARMER→/farmer/dashboard</code>, otherwise <code>/explore</code>).</p>`;
+  bindX($('#tab-journeys'));
+}
+
+/* ---------- DATABASE ---------- */
+const REL = [['users', 'refresh_tokens'], ['users', 'farmer_profiles'], ['users', 'bookings'], ['users', 'reviews'], ['users', 'admin_actions'], ['farmer_profiles', 'land_listings'], ['farmer_profiles', 'bookings'], ['land_listings', 'bookings'], ['land_listings', 'reviews'], ['bookings', 'reviews']];
+function renderDb() {
+  const BW = 230, BH = 76;
+  const c = k => [TABLES[k].x + BW / 2, TABLES[k].y + BH / 2];
+  let svg = `<svg viewBox="0 0 900 680" width="100%" role="img">`;
+  REL.forEach((r, i) => { const a = c(r[0]), b = c(r[1]); svg += `<line class="er-line" data-a="${r[0]}" data-b="${r[1]}" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}"/>`; });
+  Object.keys(TABLES).forEach(k => {
+    const t = TABLES[k];
+    svg += `<g class="er-box ${t.patch ? 'patch' : ''}" data-x="table:${k}" data-t="${k}" data-svcs="db"><rect x="${t.x}" y="${t.y}" width="${BW}" height="${BH}" rx="10"/><text x="${t.x + 12}" y="${t.y + 26}" font-size="14" font-weight="700">${k}</text><text x="${t.x + 12}" y="${t.y + 45}" font-size="11" class="mut">${t.cols.length} columns · ${t.indexes.length} indexes</text><text x="${t.x + 12}" y="${t.y + 62}" font-size="10.5" class="mut">${t.patch ? 'patch · ' : ''}model ${t.model}</text></g>`;
+  });
+  svg += '</svg>';
+  $('#tab-db').innerHTML = `<h2>Database</h2>
+<p class="sub">PostgreSQL via Prisma. Click a table for its schema, relations and which endpoints read/write it. Hover a table to highlight its relations. Dashed purple = not merged / experimental.</p>
+<div class="card" style="padding:6px">${svg}</div>
+<h3>Tables</h3>
+<div class="grid">${Object.keys(TABLES).map(k => { const t = TABLES[k], u = usedBy(k); return `<div class="card" data-svcs="db" style="cursor:pointer" data-x="table:${k}"><b>${k}</b> ${t.patch ? '<span class="badge b-patch">PATCH</span>' : ''}<br><small style="color:var(--muted)">${esc(t.purpose.slice(0, 110))}…</small><br><span class="chip">${t.cols.length} cols</span><span class="chip">${u.length} endpoints</span></div>`; }).join('')}</div>
+<h3>Enums</h3><p>${Object.keys(ENUMS).map(k => X('enum', k, k, 'chip')).join('')}</p>
+<h3>Status state machines</h3>
+<p class="sub">Green = implemented transition, orange dashed = missing, red = possible but should not be (verified from code).</p>
+<div class="pick"><button data-mc="listing" class="on">ListingStatus</button><button data-mc="booking">BookingStatus</button></div>
+<div id="machine"></div>
+<h3>Table × endpoint access matrix</h3>
+<div class="scroll"><table><tr><th>Table</th><th>Read by</th><th>Written by</th></tr>${Object.keys(TABLES).map(k => { const u = usedBy(k); const r = u.filter(x => x.rw.indexOf('R') >= 0), w = u.filter(x => x.rw.indexOf('W') >= 0); return `<tr><td>${X('table', k)}</td><td>${r.length}</td><td>${w.map(x => `<code>${x.e.m} ${esc(x.e.p.replace('/v1', ''))}</code>`).join(' ') || '—'}</td></tr>`; }).join('')}</table></div>
+<h3>Design notes worth saying out loud</h3>
+<ul class="t"><li><b>Snapshot money</b> on bookings (platformFeePercent, platformFee, farmerReceives).</li><li><b>Soft delete</b> listings via ARCHIVED; users via isActive.</li><li><b>Audit table</b> is append-only; target is polymorphic (targetType + targetId, no FK).</li><li><b>Denormalised</b> farmer rating/reviewCount avoids aggregates on every list.</li><li><b>Flat address/crop columns</b>, re-shaped to nested objects in services (indexable lat/lng).</li><li>Float for money is a shortcut – use integer paise or Decimal in production.</li></ul>`;
+  const root = $('#tab-db'); bindX(root);
+  $$('.er-box', root).forEach(g => {
+    g.onmouseenter = () => $$('.er-line', root).forEach(l => l.classList.toggle('hot', l.dataset.a === g.dataset.t || l.dataset.b === g.dataset.t));
+    g.onmouseleave = () => $$('.er-line', root).forEach(l => l.classList.remove('hot'));
+  });
+  $$('[data-mc]', root).forEach(b => b.onclick = () => { $$('[data-mc]', root).forEach(x => x.classList.toggle('on', x === b)); drawMachine(b.dataset.mc); });
+  drawMachine('listing');
+}
+function drawMachine(k) {
+  const m = MACHINES[k], BW = 140, BH = 40;
+  const col = { ok: '#16a34a', gap: '#f59e0b', bad: '#dc2626' };
+  const has = (a, b) => m.edges.some(e => e[0] === b && e[1] === a);
+  const clip = (p, q) => { // from p toward q, clipped to box around p
+    const dx = q[0] - p[0], dy = q[1] - p[1]; const sx = dx ? (BW / 2) / Math.abs(dx) : 1e9, sy = dy ? (BH / 2) / Math.abs(dy) : 1e9; const s = Math.min(sx, sy);
+    return [p[0] + dx * s, p[1] + dy * s];
+  };
+  let svg = `<svg viewBox="0 0 760 270" width="100%"><defs>${Object.keys(col).map(c => `<marker id="m-${c}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${col[c]}"/></marker>`).join('')}</defs>`;
+  const P = {}; m.states.forEach(s => { P[s] = [m.pos[s][0] + BW / 2, m.pos[s][1] + BH / 2]; });
+  m.edges.forEach(e => {
+    let a = P[e[0]], b = P[e[1]];
+    const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
+    const off = has(e[0], e[1]) ? 12 : 0, nx = -dy / len * off, ny = dx / len * off;
+    const a2 = [a[0] + nx, a[1] + ny], b2 = [b[0] + nx, b[1] + ny];
+    const s = clip(a2, b2), t = clip(b2, a2);
+    svg += `<line x1="${s[0]}" y1="${s[1]}" x2="${t[0]}" y2="${t[1]}" stroke="${col[e[3]]}" stroke-width="2" ${e[3] === 'gap' ? 'stroke-dasharray="6 4"' : ''} marker-end="url(#m-${e[3]})"/>`;
+    svg += `<text x="${(s[0] + t[0]) / 2}" y="${(s[1] + t[1]) / 2 - 4 + (off ? Math.sign(ny || 1) * 10 : 0)}" font-size="10" text-anchor="middle" style="fill:${col[e[3]]}">${esc(e[2])}</text>`;
+  });
+  m.states.forEach(s => { svg += `<g><rect x="${m.pos[s][0]}" y="${m.pos[s][1]}" width="${BW}" height="${BH}" rx="8" fill="var(--panel)" stroke="var(--muted)" stroke-width="2"/><text x="${P[s][0]}" y="${P[s][1] + 4}" font-size="12" font-weight="600" text-anchor="middle">${s}</text></g>`; });
+  svg += '</svg>';
+  $('#machine').innerHTML = `<div class="card" style="padding:6px">${svg}</div><ul class="t">${m.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>`;
+}
+
+/* ---------- API ---------- */
+function renderApi() {
+  const mods = ['all', 'core', 'auth', 'listings', 'farmer', 'users', 'bookings', 'admin', 'ai'];
+  $('#tab-api').innerHTML = `<h2>API reference</h2>
+<p class="sub">${ENDPOINTS.length} endpoints (including one the frontend calls that does not exist). Base: <code>/v1</code>. Click a row for middleware, request/response and the tables it touches.</p>
+<div class="cats" id="apimods">${mods.map(m => `<button class="btn ${S.api.mod === m ? 'pri' : ''}" data-mod="${m}">${m}</button>`).join('')}</div>
+<div class="cats"><select class="btn" id="apiauth"><option value="all">any auth</option><option value="none">public</option><option value="user">any signed-in user</option><option value="FARMER">farmer</option><option value="ADMIN">admin</option></select>
+<input class="btn" id="apiq" placeholder="filter path / text" value="${esc(S.api.q)}"><label class="btn"><input type="checkbox" id="apigaps" ${S.api.gaps ? 'checked' : ''}> only with known gaps</label></div>
+<div class="card scroll" id="apitbl" style="padding:0"></div>
+<h3>Conventions</h3><ul class="t"><li>Success <code>{ success:true, data }</code>; error <code>{ success:false, error, code, statusCode, details? }</code></li><li>401 UNAUTHORIZED, 403 FORBIDDEN / ACCOUNT_SUSPENDED, 404 NOT_FOUND, 409 (Prisma P2002), 422 (zod) with details</li><li>Rate limits: global 300 / 15 min / IP; AI chat 20 / min</li></ul>`;
+  $('#apiauth').value = S.api.auth;
+  const root = $('#tab-api');
+  $$('[data-mod]', root).forEach(b => b.onclick = () => { S.api.mod = b.dataset.mod; renderApi(); });
+  $('#apiauth').onchange = e => { S.api.auth = e.target.value; apiRows(); };
+  $('#apiq').oninput = e => { S.api.q = e.target.value; apiRows(); };
+  $('#apigaps').onchange = e => { S.api.gaps = e.target.checked; apiRows(); };
+  apiRows();
+}
+function apiRows() {
+  const a = S.api, q = a.q.toLowerCase();
+  const list = ENDPOINTS.filter(e => (a.mod === 'all' || e.mod === a.mod) && (a.auth === 'all' || (a.auth === 'none' ? e.auth === 'none' : a.auth === 'user' ? e.auth === 'user' : e.auth.indexOf(a.auth) >= 0)) && (!q || (e.p + ' ' + e.desc).toLowerCase().indexOf(q) >= 0) && (!a.gaps || e.gap || e.missing));
+  $('#apitbl').innerHTML = `<table><tr><th>Method</th><th>Path</th><th>Auth</th><th>Tables</th><th>Summary</th></tr>${list.map(e => `<tr class="click" data-x="ep:${e.id}" data-svcs="${epSvcs(e).join(' ')}"><td><span class="badge m-${e.m}">${e.m}</span></td><td><code>${esc(e.p)}</code> ${e.gap ? '<span class="badge b-gap">GAP</span>' : ''}${e.missing ? '<span class="badge b-gap">MISSING</span>' : ''}${e.patch ? '<span class="badge b-patch">PATCH</span>' : ''}</td><td>${esc(e.auth)}</td><td>${e.tables.map(t => `<span class="chip">${t[0]}·${t[1]}</span>`).join('') || '—'}</td><td>${esc(e.desc.slice(0, 120))}${e.desc.length > 120 ? '…' : ''}</td></tr>`).join('') || '<tr><td colspan="5">No match.</td></tr>'}</table>`;
+  bindX($('#apitbl')); applySvc();
+}
+
+/* ---------- AUTH ---------- */
+function renderAuth() {
+  const tok = [
+    ['Firebase ID token', '#f59e0b', 'Issued by Firebase after Google login', 'RS256 JWT, ~1 hour', 'uid, email, email_verified, name, picture, aud=projectId', 'Sent once to POST /auth/google, verified with firebase-admin, then discarded.'],
+    ['Khetly access token', '#a855f7', 'Issued by our API', 'HS256 with JWT_SECRET, 7 days', '{ sub: userId, email, role, type:"access" }', 'Sent as Authorization: Bearer on every call. requireAuth verifies it, then re-reads the user from DB.'],
+    ['Khetly refresh token', '#a855f7', 'Issued by our API', 'HS256 with JWT_REFRESH_SECRET, 90 days', '{ sub, email, role, type:"refresh" }', 'Stored in refresh_tokens; single-use (rotated); deleted on logout and on suspension.'],
+  ];
+  $('#tab-auth').innerHTML = `<h2>Authentication, authorization & RBAC</h2>
+<p class="sub">The most interview-relevant part of the system. Click the steps to see the exact responses.</p>
+<h3>Three tokens, three jobs</h3>
+<div class="grid">${tok.map(t => `<div class="card" data-svcs="${t[0].indexOf('Firebase') === 0 ? 'fb auth' : 'auth'}" style="border-top:4px solid ${t[1]}"><b>${t[0]}</b><div class="kv" style="margin-top:6px"><b>Issuer</b><span>${t[2]}</span><b>Alg / TTL</b><span>${t[3]}</span><b>Claims</b><span>${esc(t[4])}</span><b>Use</b><span>${t[5]}</span></div></div>`).join('')}</div>
+<h3>requireAuth – what happens on every protected request</h3>
+<div class="card" data-svcs="auth db api"><ol style="margin:0 0 0 18px;padding:0">
+<li>Header must start with <code>Bearer </code> → else <span class="chip">401 UNAUTHORIZED</span></li>
+<li><code>jwt.verify(token, JWT_SECRET)</code> → invalid/expired → <span class="chip">401</span> ("Session expired" vs "Invalid session")</li>
+<li><code>payload.type === "access"</code> → else <span class="chip">401</span> (stops refresh tokens being used as access tokens)</li>
+<li><code>SELECT id, role, email, isActive FROM users WHERE id = sub</code> → missing: <span class="chip">401 Account not found</span></li>
+<li><code>isActive === false</code> → <span class="chip">403 ACCOUNT_SUSPENDED</span></li>
+<li>Sets <code>req.userId / userRole / userEmail</code> (role is taken from the DB row, not the token)</li>
+<li><code>requireRole(...)</code> / <code>requireAdmin</code> → <span class="chip">403 FORBIDDEN</span> if role not allowed</li>
+<li>Service-level ownership checks (listing.farmerId, booking.renterId …)</li></ol></div>
+<h3>Role capability matrix</h3>
+<div class="scroll"><table><tr><th>Capability</th>${RBAC.roles.map(r => `<th>${r}</th>`).join('')}</tr>${RBAC.rows.map(r => `<tr><td>${esc(r[0])}</td>${r.slice(1).map(v => `<td>${v === 1 ? '<span class="tick">✓</span>' : v === 'x' ? '<span title="passes the role check but has no farmer profile → error" style="color:var(--warn)">⚠</span>' : '<span class="cross">–</span>'}</td>`).join('')}</tr>`).join('')}</table></div>
+<p class="sub">${esc(RBAC.note)}</p>
+<h3>Security properties</h3>
+<div class="grid">
+<div class="card"><b>Good</b><ul class="t"><li>Verified Google emails only</li><li>Separate secrets for access/refresh</li><li>Refresh rotation + server-side revocation</li><li>Instant suspension (DB check per request)</li><li>Admin actions audited</li><li>Helmet, strict CORS, rate limits</li></ul></div>
+<div class="card"><b>Weak / to fix</b><ul class="t"><li>${X('gap', 0, 'Role escalation via PATCH /users/me')}</li><li>${X('gap', 1, 'Listing self-approval')}</li><li>${X('gap', 9, 'Plain-text refresh tokens')}</li><li>Tokens in localStorage (XSS)</li><li>Insecure default JWT secrets in env.ts</li></ul></div>
+<div class="card"><b>Related flows</b><br>${X('flow', 'login', 'Google sign-in ▶', 'chip')}${X('flow', 'request', 'Refresh & requireAuth ▶', 'chip')}${X('flow', 'suspend', 'Suspension ▶', 'chip')}${X('node', 'firebase', 'Firebase node', 'chip')}</div></div>`;
+  bindX($('#tab-auth'));
+}
+
+/* ---------- FRONTEND ---------- */
+function renderFrontend() {
+  const gs = ['all', 'public', 'public-only', 'auth', 'RENTER', 'FARMER', 'ADMIN'];
+  $('#tab-frontend').innerHTML = `<h2>Frontend</h2>
+<p class="sub">React SPA under <code>apps/web/src</code>. Click a route for its guard and API calls.</p>
+<div class="grid">
+<div class="card" data-svcs="web"><b>State</b><ul class="t"><li><b>Zustand</b> auth.store (persist → <code>khetly-auth</code>, immer)</li><li><b>React Query</b> server cache, infinite queries for Explore</li><li><b>react-hook-form + zod</b> forms</li></ul></div>
+<div class="card" data-svcs="web auth"><b>api-client.ts (Axios)</b><ul class="t"><li>baseURL <code>VITE_API_URL + /v1</code>, 30 s timeout</li><li>Request: attach Bearer</li><li>Response: unwrap <code>{success,data}</code>; on 401 run single-flight refresh, queue + replay (<code>_retry</code>)</li><li>Refresh failure → logout</li></ul></div>
+<div class="card" data-svcs="web"><b>Guards</b><ul class="t"><li><code>ProtectedRoute allowedRoles</code></li><li><code>PublicOnlyRoute</code> (login)</li><li><code>AuthModal</code> with intent + returnTo</li><li>Layouts: AppShell, AdminShell</li></ul></div>
+<div class="card" data-svcs="web"><b>Folders</b><pre style="font-size:11.5px">pages/ (user, farmer, admin, auth, onboarding)
+modules/ (auth, listings, admin) service+hooks+store
+components/ (auth, common, forms, layout, ui)
+lib/ api-client, firebase, utils</pre></div></div>
+<h3>Routes</h3>
+<div class="cats">${gs.map(g => `<button class="btn ${S.route === g ? 'pri' : ''}" data-g="${g}">${g}</button>`).join('')}</div>
+<div class="card scroll" style="padding:0"><table><tr><th>Path</th><th>Component</th><th>Guard</th><th>API</th></tr>${ROUTES.filter(r => S.route === 'all' || r.g === S.route).map(r => `<tr class="click g-${r.g}" data-x="route:${esc(r.p)}" data-svcs="web"><td><code>${esc(r.p)}</code></td><td>${esc(r.c)}</td><td>${r.g}</td><td>${r.api.map(a => `<code>${esc(a)}</code>`).join(' ') || '—'}</td></tr>`).join('')}</table></div>
+<div class="callout note"><b>Verified mismatch:</b> <code>FarmerListingsPage</code> and the farmer dashboard call <code>GET /farmer/listings</code>, which the API does not register (see ${X('ep', 'fm-listings-missing', 'endpoint')}).</div>`;
+  const root = $('#tab-frontend');
+  $$('[data-g]', root).forEach(b => b.onclick = () => { S.route = b.dataset.g; renderFrontend(); });
+  bindX(root);
+}
+
+/* ---------- DEPLOY ---------- */
+function renderDeploy() {
+  const fil = S.env;
+  $('#tab-deploy').innerHTML = `<h2>Deploy & configuration</h2>
+<p class="sub">Free-tier topology: Vercel (web) + Render (API) + Supabase (DB) + Firebase (auth).</p>
+<div class="grid">
+<div class="card" data-svcs="host web" style="border-top:4px solid ${SVC.host.color}"><b>Vercel</b><br>Build <code>pnpm --filter web build</code> → <code>apps/web/dist</code>. SPA rewrite. Set VITE_* vars, then redeploy.<br>${X('node', 'vercel', 'details', 'chip')}</div>
+<div class="card" data-svcs="host api" style="border-top:4px solid ${SVC.host.color}"><b>Render</b><br><code>render.yaml</code>; build runs migrations. Health <code>/health</code>. Free tier sleeps ~15 min.<br>${X('node', 'render', 'details', 'chip')}</div>
+<div class="card" data-svcs="host db" style="border-top:4px solid ${SVC.db.color}"><b>Supabase</b><br>Pooled URL for runtime, direct URL for migrations. Free projects can pause when idle.<br>${X('node', 'db', 'details', 'chip')}</div>
+<div class="card" data-svcs="fb" style="border-top:4px solid ${SVC.fb.color}"><b>Firebase</b><br>Enable Google provider, add Vercel domain to Authorized domains, create service account for Admin SDK.<br>${X('node', 'firebase', 'details', 'chip')}</div></div>
+<h3>Deploy order</h3>
+<ol style="margin-left:18px"><li>Supabase project → copy pooled + direct strings</li><li>Firebase project → Google provider + service account</li><li>Render service (env vars) → deploy → check <code>/health</code></li><li>Vercel project (VITE_API_URL = Render URL) → deploy</li><li>Set Render <code>FRONTEND_URL</code> = Vercel URL; add Vercel domain to Firebase authorized domains</li><li>Sign in once with <code>FIRST_ADMIN_EMAIL</code> to become admin</li></ol>
+<h3>Local run</h3><pre>pnpm install
+cp apps/api/.env.example apps/api/.env   # DATABASE_URL, DIRECT_URL, JWT_*, FIREBASE_*
+cp apps/web/.env.example apps/web/.env   # VITE_API_URL, VITE_FIREBASE_*
+pnpm --filter api prisma generate
+pnpm db:migrate        # dev only; production uses pnpm db:deploy
+pnpm dev</pre>
+<h3>Environment variables</h3>
+<div class="cats">${['all', 'secret', 'config', 'public'].map(g => `<button class="btn ${fil === g ? 'pri' : ''}" data-e="${g}">${g}</button>`).join('')}</div>
+<div class="card scroll" style="padding:0"><table><tr><th>Variable</th><th>Used by</th><th>Kind</th><th>Notes</th></tr>${ENVVARS.filter(v => fil === 'all' || v[2] === fil).map(v => `<tr><td><code>${esc(v[0])}</code></td><td>${esc(v[1])}</td><td><span class="chip">${v[2]}</span></td><td>${esc(v[3])}</td></tr>`).join('')}</table></div>
+<h3>Production checklist</h3><ul class="t"><li>Set strong, unique JWT secrets (defaults exist in env.ts)</li><li>Fix the critical/high gaps first (${X('tab', 'interview', 'see list')})</li><li>Keep-alive ping or paid instance to avoid cold starts</li><li>Move AI conversation history + rate limits to Redis/DB before scaling to >1 instance</li><li>Use <code>prisma migrate deploy</code>, never <code>migrate dev</code>, in prod</li></ul>`;
+  const root = $('#tab-deploy');
+  $$('[data-e]', root).forEach(b => b.onclick = () => { S.env = b.dataset.e; renderDeploy(); });
+  bindX(root);
+}
+
+/* ---------- INTERVIEW ---------- */
+function renderInterview() {
+  const cats = ['All'].concat(Array.from(new Set(QA.map(q => q.c))));
+  $('#tab-interview').innerHTML = `<h2>Interview prep</h2>
+<p class="sub">Use it as a self-quiz: read the question, answer aloud, then open the card.</p>
+<div class="card"><b>30-second pitch</b><p style="margin:4px 0 0">${esc(PITCH)}</p></div>
+<h3>Questions</h3>
+<div class="cats">${cats.map(c => `<button class="btn ${S.qa === c ? 'pri' : ''}" data-c="${c}">${c}</button>`).join('')}<button class="btn" id="qrand">🎲 Random</button><button class="btn" id="qall">Expand / collapse all</button></div>
+<div id="qalist">${QA.map((q, i) => ({ q: q, i: i })).filter(o => S.qa === 'All' || o.q.c === S.qa).map(o => `<details id="qa${o.i}"><summary>${esc(o.q.q)} <span class="chip">${o.q.c}</span></summary><p>${esc(o.q.a)}</p></details>`).join('')}</div>
+<h3 id="gaps">Known gaps (verified against the repo) – be ready to discuss</h3>
+<p class="sub">Interviewers like candidates who find their own bugs. These are real, found by reading the code (first at 12eef13, re-checked after PR #1 at f486f94). Fixed items are kept so you can tell the story.</p>
+${GAPS.map((g, i) => `<details ${g.sev === 'critical' ? 'open' : ''}><summary><span class="sev ${g.sev}">${g.sev}</span> ${esc(g.t)}</summary><p><b>Evidence:</b> ${esc(g.ev)}</p><p><b>Fix:</b> ${esc(g.fix)}</p>${g.ep ? `<p>${X('ep', g.ep, 'Open endpoint →', 'chip')}</p>` : ''}</details>`).join('')}
+<h3>Scaling roadmap</h3>
+<div class="scroll"><table><tr><th>Stage</th><th>Bottleneck</th><th>Move</th></tr>
+<tr><td>1k users</td><td>Cold starts</td><td>Paid Render / keep-alive; CDN already on Vercel</td></tr>
+<tr><td>10k</td><td>In-memory search, per-request user lookup</td><td>DB-side bbox search + pagination; cache users (short TTL)</td></tr>
+<tr><td>100k</td><td>Single API instance, in-memory AI state/rate limits</td><td>Horizontal scale + Redis; read replica; queue for emails/payouts</td></tr>
+<tr><td>1M</td><td>Geo search, media, analytics</td><td>PostGIS/search engine, object storage + CDN, event pipeline</td></tr></table></div>`;
+  const root = $('#tab-interview');
+  $$('[data-c]', root).forEach(b => b.onclick = () => { S.qa = b.dataset.c; renderInterview(); });
+  $('#qrand').onclick = () => { const l = $$('#qalist details'); if (!l.length) return; l.forEach(d => d.open = false); const d = l[Math.floor(Math.random() * l.length)]; d.scrollIntoView({ block: 'center' }); };
+  $('#qall').onclick = () => { const l = $$('#qalist details'); const o = l.some(d => !d.open); l.forEach(d => d.open = o); };
+  bindX(root);
+}
+
+/* ---------- SEARCH ---------- */
+function buildIndex() {
+  const ix = [];
+  Object.keys(TABLES).forEach(k => { ix.push({ k: 'table', id: k, label: k, hint: 'table', text: k + ' ' + TABLES[k].cols.map(c => c[0]).join(' ') }); });
+  ENDPOINTS.forEach(e => ix.push({ k: 'ep', id: e.id, label: e.m + ' ' + e.p, hint: 'endpoint', text: e.p + ' ' + e.desc }));
+  Object.keys(NODES).forEach(k => ix.push({ k: 'node', id: k, label: NODES[k].title, hint: 'component', text: NODES[k].title + ' ' + NODES[k].summary }));
+  ROUTES.forEach(r => ix.push({ k: 'route', id: r.p, label: r.p, hint: 'route', text: r.p + ' ' + r.c }));
+  Object.keys(ENUMS).forEach(k => ix.push({ k: 'enum', id: k, label: k, hint: 'enum', text: k + ' ' + ENUMS[k].join(' ') }));
+  GAPS.forEach((g, i) => ix.push({ k: 'gap', id: String(i), label: g.t, hint: 'gap', text: g.t + ' ' + g.ev }));
+  QA.forEach((q, i) => ix.push({ k: 'qa', id: String(i), label: q.q, hint: 'question', text: q.q + ' ' + q.a }));
+  return ix;
+}
+function bindSearch() {
+  const ix = buildIndex(), box = $('#q'), res = $('#results');
+  box.oninput = () => {
+    const q = box.value.trim().toLowerCase(); if (q.length < 2) { res.style.display = 'none'; return; }
+    const hits = ix.filter(x => x.text.toLowerCase().indexOf(q) >= 0).slice(0, 14);
+    res.innerHTML = hits.map((h, i) => `<div data-i="${i}">${esc(h.label)}<small>${h.hint}</small></div>`).join('') || '<div>No results</div>';
+    res.style.display = 'block';
+    $$('div[data-i]', res).forEach(d => d.onclick = () => { const h = hits[+d.dataset.i]; res.style.display = 'none'; box.value = ''; S.stack = []; openD(h.k, h.id, true); });
+  };
+  document.addEventListener('click', e => { if (!e.target.closest('.search')) res.style.display = 'none'; });
+}
+
+/* ---------- init ---------- */
+function init() {
+  try { const t = localStorage.getItem('khetly-sd-theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) { /* ignore */ }
+  $('#theme').onclick = () => {
+    const cur = document.documentElement.getAttribute('data-theme') || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const nx = cur === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', nx);
+    try { localStorage.setItem('khetly-sd-theme', nx); } catch (e) { /* ignore */ }
+  };
+  $('#dclose').onclick = closeD;
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeD();
+    if (S.tab === 'flows' && !/INPUT|SELECT|TEXTAREA/.test((document.activeElement || {}).tagName || '')) {
+      if (e.key === 'ArrowRight') { stopPlay(); stepFlow(1); } else if (e.key === 'ArrowLeft') { stopPlay(); stepFlow(-1); }
+    }
+  });
+  buildSvcBar(); buildNav(); bindSearch();
+  renderOverview(); renderFlows(); renderJourneys(); renderDb(); renderApi(); renderAuth(); renderFrontend(); renderDeploy(); renderInterview();
+  const h = (location.hash || '').replace('#', '');
+  goTab(TABS.some(t => t[0] === h) ? h : 'overview');
+}
+init();
+
+</script>
+</body>
+</html>
